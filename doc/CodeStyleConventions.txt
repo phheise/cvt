@@ -1,0 +1,83 @@
+General
+=======
+
+Use typically trailing braces for control structures (if, else, do, while, etc. )
+
+if ( x ) {
+}
+
+
+The else statement starts on the same line as the last closing brace.
+
+if ( x ) {
+} else {
+}
+
+Classes, structs, functions and methods do _not_ use trailing braces 
+
+class XYZ
+{
+	public:
+		int bla();
+} 
+
+and
+
+int XYZ::bla()
+{
+
+}
+
+Pad parenthesized expressions and assignments with spaces
+
+if ( x ) {
+	int x = 2 + ( a & 1 );
+	int y = ( z * 0.5f );
+}
+
+Instead of 
+
+if (x) {
+	int   x=2+(a&1);
+	float y=(z * 0.5f);
+	
+}
+
+Use precision specification for floating point values unless there is an explicit need for a double.
+
+float f = 0.5f;
+
+Instead of
+
+float f = 0.5;
+
+And
+
+float f = 1.0f;
+
+Instead of
+
+float f = 1.f;
+
+The size_t type should be used when the size of memory or data structures is concerned. This is for 32/64-bit portability.
+
+Const should be used as much as possible as well as references.
+
+Class member variables start with an underscore.
+
+The pointer symbol should be next to the type e.g. int* func() instead of int *func().
+
+If possible align variable and method declarations e.g.
+
+int             abc();
+const size_t	size() const;
+
+instead of
+
+int abc();
+const size_t size() const;
+
+Filenames
+=========
+
+Filenames should coresspond to the classes. Try to avoid to put several classes in one file.
