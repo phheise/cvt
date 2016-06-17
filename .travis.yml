@@ -4,7 +4,7 @@ language: cpp
 
 os:
  - linux
-# - osx
+ - osx
 
 notifications:
  email: false
@@ -14,11 +14,11 @@ compiler:
  - gcc
 
 before_script:
- - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install libpng12-0 libpng12-dev; fi
- - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install libeigen3-dev; fi
- - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev; fi
- - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install opencl-headers; fi
  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      sudo apt-get install libpng12-0 libpng12-dev
+      sudo apt-get install libeigen3-dev
+      sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev
+      sudo apt-get install opencl-headers
       bash .travis/amd_sdk.sh;
       tar -xjf AMD-SDK.tar.bz2;
       AMDAPPSDK=${HOME}/AMDAPPSDK;
@@ -28,9 +28,13 @@ before_script:
       echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
       export LD_LIBRARY_PATH=${AMDAPPSDK}/lib/x86_64:${LD_LIBRARY_PATH};
       sudo ln -s ${AMDAPPSDK}/lib/x86_64/libamdocl64.so /usr/lib/libOpenCL.so;
-   fi;
+  fi;
+ -if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+    brew install libpng eigen ffmpeg
+  fi;
 
 script:
  - mkdir build
  - cd build
- - cmake .. && make
+ - cmake ..
+ - make
