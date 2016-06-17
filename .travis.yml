@@ -9,7 +9,9 @@ compiler:
  - gcc
 
 before_script:
- - if [ "$TRAVIS_OS_NAME" == "linux" ]; sudo apt-get install libpng12-0 libpng12-dev libeigen3-dev libavformat-dev libavcodec-dev; fi
+ - if [ "$TRAVIS_OS_NAME" == "linux" ]; sudo apt-get install libpng12-0 libpng12-dev; fi
+ - if [ "$TRAVIS_OS_NAME" == "linux" ]; sudo apt-get install libeigen3-dev; fi
+ - if [ "$TRAVIS_OS_NAME" == "linux" ]; sudo apt-get install libavformat-dev libavcodec-dev libavutil-dev; fi
 
  script:
   - mkdir build
