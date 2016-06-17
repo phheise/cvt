@@ -27,8 +27,9 @@ before_script:
       sh AMD-APP-SDK*.sh --tar -xf -C ${AMDAPPSDK};
       echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
       export LD_LIBRARY_PATH=${AMDAPPSDK}/lib/x86_64:${LD_LIBRARY_PATH};
-      chmod +x ${AMDAPPSDK}/bin/x86_64/clinfo;
-      ${AMDAPPSDK}/bin/x86_64/clinfo;
+      sudo ln -s ${AMDAPPSDK}/lib/x86_64/libamdocl64.so /usr/lib/libOpenCL.so 
+#chmod +x ${AMDAPPSDK}/bin/x86_64/clinfo;
+#${AMDAPPSDK}/bin/x86_64/clinfo;
    fi;
 
 script:
