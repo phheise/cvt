@@ -100,7 +100,11 @@ namespace cvt {
 
 		updateFormat();
 
-		_avFrame = av_alloc_frame();
+#if LIBAVCODEC_VERSION_MAJOR <= 55
+		_avFrame = avcodec_alloc_frame();
+#else
+		_avFrame = av_frame_alloc();
+#endif
 	}
 
 	VideoReader::~VideoReader()
@@ -119,6 +123,34 @@ namespace cvt {
 
 	void VideoReader::updateFormat()
 	{
+#if LIBAVUTIL_VERSION_MAJOR < 55
+		switch( _codecContext->pix_fmt ){
+			case PIX_FMT_BGRA:
+				_format = IFormat::BGRA_UINT8;
+				break;
+			case PIX_FMT_RGBA:
+				_format = IFormat::RGBA_UINT8;
+				break;
+			case PIX_FMT_GRAY8:
+				_format = IFormat::GRAY_UINT8;
+				break;
+			case PIX_FMT_GRAY16LE:
+				_format = IFormat::GRAY_UINT16;
+				break;
+			case PIX_FMT_YUV422P:
+				_format = IFormat::YUYV_UINT8;
+				break;
+			case PIX_FMT_UYVY422:
+				_format = IFormat::UYVY_UINT8;
+				break;
+			case PIX_FMT_YUV420P:
+				_format = IFormat::BGRA_UINT8;
+				break;
+			default:
+				std::cout << "Pixelformat:" << (int)_codecContext->pix_fmt << std::endl;
+				throw CVTException( "Cannot map Pixelformat to CVT Format!" );
+		}
+#else
 		// alloc frame:
 		switch( _codecContext->pix_fmt ){
 			case AV_PIX_FMT_BGRA:
@@ -146,6 +178,7 @@ namespace cvt {
 				std::cout << "Pixelformat:" << (int)_codecContext->pix_fmt << std::endl;
 				throw CVTException( "Cannot map Pixelformat to CVT Format!" );
 		}
+#endif
 	}
 
 	bool VideoReader::nextFrame( size_t )
@@ -163,7 +196,11 @@ namespace cvt {
 				// Did we get a video frame?
 				if(frameFinished) {
 					// decoded a new frame lying in _avFrame
+#if LIBAVUTIL_VERSION_MAJOR < 55
+					if( _codecContext->pix_fmt == PIX_FMT_YUV420P ) {
+#else
 					if( _codecContext->pix_fmt == AV_PIX_FMT_YUV420P ) {
+#endif
 						if( !_frame )
 							_frame = new Image( _width, _height, _format );
 
