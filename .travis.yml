@@ -1,0 +1,17 @@
+language: cpp
+
+os:
+ - linux
+# - osx
+
+compiler:
+ - clang
+ - gcc
+
+before_script:
+ - if [ "$TRAVIS_OS_NAME" == "linux" ]; sudo apt-get install libpng12-0 libpng12-dev libeigen3-dev libavformat-dev libavcodec-dev; fi
+
+ script:
+  - mkdir build
+  - cd build
+  - cmake .. && make
