@@ -30,6 +30,7 @@ before_script:
       sudo ln -s ${AMDAPPSDK}/lib/x86_64/libamdocl64.so /usr/lib/libOpenCL.so;
   fi;
  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+    brew update;
     brew install libpng eigen ffmpeg;
   fi;
 
