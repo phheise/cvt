@@ -1,6 +1,6 @@
 ![CVT Logo](/data/logos/cvt.png)
 
-[![Build Status](https://travis-ci.org/phheise/cvt.svg?branch=master)](https://travis-ci.org/phheise/cvt?branch=master)
+[![Build Status](https://travis-ci.org/phheise/cvt.svg?branch=master)](https://travis-ci.org/phheise/cvt)
 
 Computer Vision Tools
 =====================
