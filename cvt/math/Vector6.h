@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -36,53 +37,54 @@ namespace cvt {
         enum        { DIMENSION = 6 };
 
 
-                    Vector6();
-                    Vector6( T x, T y, T z, T u, T v, T w );
-                    Vector6( const Vector6<T>& vec );
+        Vector6();
+        Vector6( T value );
+        Vector6( T x, T y, T z, T u, T v, T w );
+        Vector6( const Vector6<T>& vec );
 
-		void		set( T x, T y, T z, T u, T v, T w );
-        void		setZero( void );
+        void        set( T x, T y, T z, T u, T v, T w );
+        void        setZero( void );
 
-        T			operator[]( int index ) const;
-        T&			operator[]( int index );
-        Vector6<T>	operator-() const;
-        T			operator*( const Vector6<T> &v ) const;
-        Vector6<T>	operator*( const T c ) const;
-        Vector6<T>	cmul( const Vector6<T>& v ) const;
-        Vector6<T>	operator/( const T c ) const;
-        Vector6<T>	operator+( const Vector6<T> &v ) const;
-        Vector6<T>	operator-( const Vector6<T> &v ) const;
-        Vector6<T>&	operator+=( const Vector6<T> &v );
-        Vector6<T>&	operator-=( const Vector6<T> &v );
-        Vector6<T>&	operator/=( const Vector6<T> &v );
-        Vector6<T>&	operator+=( const T c );
-        Vector6<T>&	operator-=( const T c );
-        Vector6<T>&	operator/=( const T c );
-        Vector6<T>&	operator*=( const T c );
+        T           operator[]( int index ) const;
+        T&          operator[]( int index );
+        Vector6<T>  operator-() const;
+        T           operator*( const Vector6<T> &v ) const;
+        Vector6<T>  operator*( const T c ) const;
+        Vector6<T>  cmul( const Vector6<T>& v ) const;
+        Vector6<T>  operator/( const T c ) const;
+        Vector6<T>  operator+( const Vector6<T> &v ) const;
+        Vector6<T>  operator-( const Vector6<T> &v ) const;
+        Vector6<T>& operator+=( const Vector6<T> &v );
+        Vector6<T>& operator-=( const Vector6<T> &v );
+        Vector6<T>& operator/=( const Vector6<T> &v );
+        Vector6<T>& operator+=( const T c );
+        Vector6<T>& operator-=( const T c );
+        Vector6<T>& operator/=( const T c );
+        Vector6<T>& operator*=( const T c );
 
         template <typename T2>
         operator Vector6<T2>() const;
 
-        bool		operator==( const Vector6<T> &v ) const;
-        bool		operator!=( const Vector6<T> &v ) const;
+        bool        operator==( const Vector6<T> &v ) const;
+        bool        operator!=( const Vector6<T> &v ) const;
 
-        T			length( void ) const;
-        T			lengthSqr( void ) const;
-        T			normalize( void );		// returns length
-        void		clamp( const Vector6<T> &min, const Vector6<T> &max );
+        T           length( void ) const;
+        T           lengthSqr( void ) const;
+        T           normalize( void );      // returns length
+        void        clamp( const Vector6<T> &min, const Vector6<T> &max );
 
-        size_t		dimension( void ) const;
+        size_t      dimension( void ) const;
 
         bool        isEqual( const Vector6<T> & other, T epsilon ) const;
 
-        const T*	ptr( void ) const;
-        T*			ptr( void );
+        const T*    ptr( void ) const;
+        T*          ptr( void );
 
         String      toString( void ) const;
 
         static Vector6<T> fromString( const String & s );
 
-        void		mix( const Vector6<T> &v1, const Vector6<T> &v2, float alpha );
+        void        mix( const Vector6<T> &v1, const Vector6<T> &v2, float alpha );
 
         T x, y, z, u, v, w;
     };
@@ -90,6 +92,17 @@ namespace cvt {
     template<typename T>
     inline Vector6<T>::Vector6()
     {
+    }
+
+    template<typename T>
+    inline Vector6<T>::Vector6( T value )
+    {
+        this->x = value;
+        this->y = value;
+        this->z = value;
+        this->u = value;
+        this->v = value;
+        this->w = value;
     }
 
     template<typename T>
@@ -285,51 +298,51 @@ namespace cvt {
     template <typename T> template <typename T2>
     inline Vector6<T>::operator Vector6<T2>() const
     {
-		return Vector6<T2>( ( T2 )x, ( T2 )y, ( T2 )z, ( T2 )u, ( T2 )v, ( T2 )w );
+        return Vector6<T2>( ( T2 )x, ( T2 )y, ( T2 )z, ( T2 )u, ( T2 )v, ( T2 )w );
     }
 
     template<>
-	inline bool Vector6<float>::operator==( const Vector6<float> &vec ) const
+    inline bool Vector6<float>::operator==( const Vector6<float> &vec ) const
     {
-		return Math::abs( vec.x - x ) < Math::EPSILONF
-			&& Math::abs( vec.y - y ) < Math::EPSILONF
-			&& Math::abs( vec.z - z ) < Math::EPSILONF
-			&& Math::abs( vec.u - u ) < Math::EPSILONF
-			&& Math::abs( vec.v - v ) < Math::EPSILONF
-			&& Math::abs( vec.w - w ) < Math::EPSILONF;
+       return Math::abs( vec.x - x ) < Math::EPSILONF
+           && Math::abs( vec.y - y ) < Math::EPSILONF
+           && Math::abs( vec.z - z ) < Math::EPSILONF
+           && Math::abs( vec.u - u ) < Math::EPSILONF
+           && Math::abs( vec.v - v ) < Math::EPSILONF
+           && Math::abs( vec.w - w ) < Math::EPSILONF;
     }
 
     template<>
-	inline bool Vector6<float>::operator!=( const Vector6<float> &vec ) const
+    inline bool Vector6<float>::operator!=( const Vector6<float> &vec ) const
     {
-		return Math::abs( vec.x - x ) > Math::EPSILONF
-			|| Math::abs( vec.y - y ) > Math::EPSILONF
-			|| Math::abs( vec.z - z ) > Math::EPSILONF
-			|| Math::abs( vec.u - u ) > Math::EPSILONF
-			|| Math::abs( vec.v - v ) > Math::EPSILONF
-			|| Math::abs( vec.w - w ) > Math::EPSILONF;
+       return Math::abs( vec.x - x ) > Math::EPSILONF
+           || Math::abs( vec.y - y ) > Math::EPSILONF
+           || Math::abs( vec.z - z ) > Math::EPSILONF
+           || Math::abs( vec.u - u ) > Math::EPSILONF
+           || Math::abs( vec.v - v ) > Math::EPSILONF
+           || Math::abs( vec.w - w ) > Math::EPSILONF;
     }
 
     template<>
-	inline bool Vector6<double>::operator==( const Vector6<double> &vec ) const
+    inline bool Vector6<double>::operator==( const Vector6<double> &vec ) const
     {
-		return Math::abs( vec.x - x ) < Math::EPSILOND
-			&& Math::abs( vec.y - y ) < Math::EPSILOND
-			&& Math::abs( vec.z - z ) < Math::EPSILOND
-			&& Math::abs( vec.u - u ) < Math::EPSILOND
-			&& Math::abs( vec.v - v ) < Math::EPSILOND
-			&& Math::abs( vec.w - w ) < Math::EPSILOND;
+       return Math::abs( vec.x - x ) < Math::EPSILOND
+           && Math::abs( vec.y - y ) < Math::EPSILOND
+           && Math::abs( vec.z - z ) < Math::EPSILOND
+           && Math::abs( vec.u - u ) < Math::EPSILOND
+           && Math::abs( vec.v - v ) < Math::EPSILOND
+           && Math::abs( vec.w - w ) < Math::EPSILOND;
     }
 
     template<>
-	inline bool Vector6<double>::operator!=( const Vector6<double> &vec ) const
+    inline bool Vector6<double>::operator!=( const Vector6<double> &vec ) const
     {
-		return Math::abs( vec.x - x ) > Math::EPSILOND
-			|| Math::abs( vec.y - y ) > Math::EPSILOND
-			|| Math::abs( vec.z - z ) > Math::EPSILOND
-			|| Math::abs( vec.u - u ) > Math::EPSILOND
-			|| Math::abs( vec.v - v ) > Math::EPSILOND
-			|| Math::abs( vec.w - w ) > Math::EPSILOND;
+       return Math::abs( vec.x - x ) > Math::EPSILOND
+           || Math::abs( vec.y - y ) > Math::EPSILOND
+           || Math::abs( vec.z - z ) > Math::EPSILOND
+           || Math::abs( vec.u - u ) > Math::EPSILOND
+           || Math::abs( vec.v - v ) > Math::EPSILOND
+           || Math::abs( vec.w - w ) > Math::EPSILOND;
     }
 
 
@@ -352,7 +365,7 @@ namespace cvt {
 
         lenSqr = lengthSqr();
         lenInv = Math::invSqrt( lenSqr );
-		this->operator *=( lenInv );
+        this->operator *=( lenInv );
         return lenSqr * lenInv;
     }
 
@@ -419,11 +432,11 @@ namespace cvt {
     template<typename T>
     std::ostream& operator<<( std::ostream& out, const Vector6<T> &v )
     {
-        out << " | " 
-			<< std::setprecision( 5 ) 
-			<< std::setw( 12 ) << v.x << " " << std::setw( 12 ) << v.y << " " << std::setw( 12 ) << v.z << " " 
-			<< std::setw( 12 ) << v.u << " " << std::setw( 12 ) << v.v << " " << std::setw( 12 ) << v.w 
-			<< " | ";
+        out << " | "
+            << std::setprecision( 5 )
+            << std::setw( 12 ) << v.x << " " << std::setw( 12 ) << v.y << " " << std::setw( 12 ) << v.z << " "
+            << std::setw( 12 ) << v.u << " " << std::setw( 12 ) << v.v << " " << std::setw( 12 ) << v.w
+            << " | ";
         return out;
     }
 

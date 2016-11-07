@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -40,53 +41,54 @@ namespace cvt {
         enum        { DIMENSION = 3 };
 
 
-                    Vector3();
-                    Vector3( T x, T y, T z );
-                    Vector3( const Vector3<T>& vec );
-                    Vector3( const Vector4<T>& vec );
+        Vector3();
+        Vector3( T value );
+        Vector3( T x, T y, T z );
+        Vector3( const Vector3<T>& vec );
+        Vector3( const Vector4<T>& vec );
 
-        void		set( T x, T y, T z );
-        void		setZero( void );
+        void        set( T x, T y, T z );
+        void        setZero( void );
 
-        T			operator[]( int index ) const;
-        T&			operator[]( int index );
-        Vector3<T>	operator-() const;
-        T			operator*( const Vector3<T> &v ) const;
-        Vector3<T>	operator*( const T c ) const;
-        T			dot( const Vector3<T>& v ) const;
-        Vector3<T>	cmul( const Vector3<T>& v ) const;
-        Vector3<T>	cross( const Vector3<T> &v ) const;
+        T           operator[]( int index ) const;
+        T&          operator[]( int index );
+        Vector3<T>  operator-() const;
+        T           operator*( const Vector3<T> &v ) const;
+        Vector3<T>  operator*( const T c ) const;
+        T           dot( const Vector3<T>& v ) const;
+        Vector3<T>  cmul( const Vector3<T>& v ) const;
+        Vector3<T>  cross( const Vector3<T> &v ) const;
         Vector3<T>& cross( const Vector3<T>& a, const Vector3<T>& b );
-        Vector3<T>	operator/( const T c ) const;
-        Vector3<T>	operator+( const Vector3<T> &v ) const;
-        Vector3<T>	operator-( const Vector3<T> &v ) const;
-        Vector3<T>&	operator+=( const Vector3<T> &v );
-        Vector3<T>&	operator-=( const Vector3<T> &v );
-        Vector3<T>&	operator/=( const Vector3<T> &v );
-        Vector3<T>&	operator+=( const T c );
-        Vector3<T>&	operator-=( const T c );
-        Vector3<T>&	operator/=( const T c );
-        Vector3<T>&	operator*=( const T c );
+        Vector3<T>  operator/( const T c ) const;
+        Vector3<T>  operator+( const Vector3<T> &v ) const;
+        Vector3<T>  operator-( const Vector3<T> &v ) const;
+        Vector3<T>& operator+=( const Vector3<T> &v );
+        Vector3<T>& operator-=( const Vector3<T> &v );
+        Vector3<T>& operator/=( const Vector3<T> &v );
+        Vector3<T>& operator+=( const T c );
+        Vector3<T>& operator-=( const T c );
+        Vector3<T>& operator/=( const T c );
+        Vector3<T>& operator*=( const T c );
 
         template <typename T2>
         operator Vector3<T2>() const;
 
-        bool		operator==( const Vector3<T> &v ) const;
-        bool		operator!=( const Vector3<T> &v ) const;
+        bool        operator==( const Vector3<T> &v ) const;
+        bool        operator!=( const Vector3<T> &v ) const;
 
-        T			length( void ) const;
-        T			lengthSqr( void ) const;
-        T			normalize( void );		// returns length
-        void		clamp( const Vector3<T>& min, const Vector3<T>& max );
+        T           length( void ) const;
+        T           lengthSqr( void ) const;
+        T           normalize( void );      // returns length
+        void        clamp( const Vector3<T>& min, const Vector3<T>& max );
 
-        size_t		dimension( void ) const;
+        size_t      dimension( void ) const;
 
         bool        isEqual( const Vector3<T> & other, T epsilon ) const;
 
-        const T*	ptr( void ) const;
-        T*			ptr( void );
+        const T*    ptr( void ) const;
+        T*          ptr( void );
 
-        void		mix( const Vector3<T> &v1, const Vector3<T> &v2, float alpha );
+        void        mix( const Vector3<T> &v1, const Vector3<T> &v2, float alpha );
 
         String      toString( void ) const;
         static Vector3<T> fromString( const String & s );
@@ -97,6 +99,14 @@ namespace cvt {
     template<typename T>
     inline Vector3<T>::Vector3()
     {
+    }
+
+    template<typename T>
+    inline Vector3<T>::Vector3( T value )
+    {
+        this->x = value;
+        this->y = value;
+        this->z = value;
     }
 
     template<typename T>
@@ -171,7 +181,6 @@ namespace cvt {
         return Vector3<T>( x * c, y * c, z * c );
     }
 
-
     template<typename T>
     inline T Vector3<T>::dot( const Vector3<T>& v ) const
     {
@@ -198,7 +207,6 @@ namespace cvt {
         z = a.x * b.y - a.y * b.x;
         return *this;
     }
-
 
     template<typename T>
     inline T Vector3<T>::operator*( const Vector3<T>& v ) const
@@ -270,7 +278,6 @@ namespace cvt {
         return *this;
     }
 
-
     template<typename T>
     inline Vector3<T>& Vector3<T>::operator/=( const T c )
     {
@@ -327,7 +334,6 @@ namespace cvt {
             || Math::abs( v.z - z ) > Math::EPSILOND;
     }
 
-
     template<typename T>
     inline T Vector3<T>::length( void ) const
     {
@@ -351,9 +357,7 @@ namespace cvt {
         y *= lenInv;
         z *= lenInv;
 
-        //FIXME: return nan on for zero vector
-
-        return lenSqr;// * lenInv;
+        return lenSqr * lenInv;
     }
 
     template<typename T>
@@ -417,7 +421,7 @@ namespace cvt {
         String deliminators("\n\r\t ");
         for( size_t i = 0; i < 3; i++ ){
             if( !it.nextToken( token, deliminators ) )
-                throw CVTException( "Could not create Matrix from String!" );
+                throw CVTException( "Could not create vector from string!" );
             m[ i ] = token.to<T>();
         }
 

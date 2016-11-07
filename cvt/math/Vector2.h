@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -39,52 +40,53 @@ namespace cvt {
         typedef     T TYPE;
         enum        { DIMENSION = 2 };
 
-                    Vector2();
-                    Vector2( const T x, const T y );
-                    Vector2( const Vector2<T>& vec2 );
-                    Vector2( const Vector3<T>& vec3 );
+        Vector2();
+        Vector2( T value );
+        Vector2( const T x, const T y );
+        Vector2( const Vector2<T>& vec2 );
+        Vector2( const Vector3<T>& vec3 );
 
-        void		set( T x, T y );
-        void		setZero( void );
+        void        set( T x, T y );
+        void        setZero( void );
 
-        T			operator[]( int index ) const;
-        T&			operator[]( int index );
-        Vector2<T>	operator-() const;
-        T			operator*( const Vector2<T> &v ) const;
-        Vector2<T>	operator*( const T c ) const;
-        T			dot( const Vector2<T>& v ) const;
-        Vector2<T>	cmul( const Vector2<T>& v ) const;
-        Vector2<T>	operator/( const T c ) const;
-        Vector2<T>	operator/( const Vector2<T>& v ) const;
-        Vector2<T>	operator+( const Vector2<T> &v ) const;
-        Vector2<T>	operator-( const Vector2<T> &v ) const;
-        Vector2<T>&	operator+=( const Vector2<T> &v );
-        Vector2<T>&	operator-=( const Vector2<T> &v );
-        Vector2<T>&	operator/=( const Vector2<T> &v );
-        Vector2<T>&	operator+=( const T c );
-        Vector2<T>&	operator-=( const T c );
-        Vector2<T>&	operator/=( const T c );
-        Vector2<T>&	operator*=( const T c );
+        T           operator[]( int index ) const;
+        T&          operator[]( int index );
+        Vector2<T>  operator-() const;
+        T           operator*( const Vector2<T> &v ) const;
+        Vector2<T>  operator*( const T c ) const;
+        T           dot( const Vector2<T>& v ) const;
+        Vector2<T>  cmul( const Vector2<T>& v ) const;
+        Vector2<T>  operator/( const T c ) const;
+        Vector2<T>  operator/( const Vector2<T>& v ) const;
+        Vector2<T>  operator+( const Vector2<T> &v ) const;
+        Vector2<T>  operator-( const Vector2<T> &v ) const;
+        Vector2<T>& operator+=( const Vector2<T> &v );
+        Vector2<T>& operator-=( const Vector2<T> &v );
+        Vector2<T>& operator/=( const Vector2<T> &v );
+        Vector2<T>& operator+=( const T c );
+        Vector2<T>& operator-=( const T c );
+        Vector2<T>& operator/=( const T c );
+        Vector2<T>& operator*=( const T c );
 
         template <typename T2>
         operator Vector2<T2>() const;
 
-        bool		operator==( const Vector2<T> &v ) const;
-        bool		operator!=( const Vector2<T> &v ) const;
+        bool        operator==( const Vector2<T> &v ) const;
+        bool        operator!=( const Vector2<T> &v ) const;
 
-        T			length( void ) const;
-        T			lengthSqr( void ) const;
-        T			normalize( void );		// returns length
-        void		clamp( const Vector2<T> &min, const Vector2<T> &max );
+        T           length( void ) const;
+        T           lengthSqr( void ) const;
+        T           normalize( void );      // returns length
+        void        clamp( const Vector2<T> &min, const Vector2<T> &max );
 
-        size_t		dimension( void ) const;
+        size_t      dimension( void ) const;
 
         bool        isEqual( const Vector2<T> & other, T epsilon ) const;
 
-        const T*	ptr( void ) const;
-        T*			ptr( void );
+        const T*    ptr( void ) const;
+        T*          ptr( void );
 
-        void		mix( const Vector2<T> &v1, const Vector2<T> &v2, float alpha );
+        void        mix( const Vector2<T> &v1, const Vector2<T> &v2, float alpha );
 
         String      toString( void ) const;
 
@@ -96,6 +98,13 @@ namespace cvt {
     template<typename T>
     inline Vector2<T>::Vector2()
     {
+    }
+
+    template<typename T>
+    inline Vector2<T>::Vector2( T value )
+    {
+        this->x = value;
+        this->y = value;
     }
 
     template<typename T>
@@ -194,7 +203,6 @@ namespace cvt {
     {
         return Vector2<T>( x / v.x, y / v.y );
     }
-
 
     template<typename T>
     inline Vector2<T> Vector2<T>::operator+( const Vector2<T> &v ) const
@@ -295,7 +303,6 @@ namespace cvt {
         return Math::abs( v.x - x ) > Math::EPSILOND || Math::abs( v.y - y ) > Math::EPSILOND;
     }
 
-
     template<typename T>
     inline T Vector2<T>::length( void ) const
     {
@@ -378,7 +385,7 @@ namespace cvt {
         String deliminators("\n\r\t ");
         for( size_t i = 0; i < 2; i++ ){
             if( !it.nextToken( token, deliminators ) )
-                throw CVTException( "Could not create Matrix from String!" );
+                throw CVTException( "Could not create vector from string!" );
             m[ i ] = token.to<T>();
         }
 

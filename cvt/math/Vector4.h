@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -37,53 +38,54 @@ namespace cvt {
         typedef     T TYPE;
         enum        { DIMENSION = 4 };
 
-                    Vector4();
-                    Vector4( T x, T y, T z, T w );
-                    Vector4( const Vector4<T>& vec );
+        Vector4();
+        Vector4( T value );
+        Vector4( T x, T y, T z, T w );
+        Vector4( const Vector4<T>& vec );
 
-        void		set( T x, T y, T z, T w );
-        void		setZero( void );
+        void        set( T x, T y, T z, T w );
+        void        setZero( void );
 
-        T			operator[]( int index ) const;
-        T&			operator[]( int index );
-        Vector4<T>	operator-() const;
-        T			operator*( const Vector4<T> &v ) const;
-        Vector4<T>	operator*( const T c ) const;
-        Vector4<T>	cmul( const Vector4<T>& v ) const;
-        Vector4<T>	operator/( const T c ) const;
-        Vector4<T>	operator+( const Vector4<T> &v ) const;
-        Vector4<T>	operator-( const Vector4<T> &v ) const;
-        Vector4<T>&	operator+=( const Vector4<T> &v );
-        Vector4<T>&	operator-=( const Vector4<T> &v );
-        Vector4<T>&	operator/=( const Vector4<T> &v );
-        Vector4<T>&	operator+=( const T c );
-        Vector4<T>&	operator-=( const T c );
-        Vector4<T>&	operator/=( const T c );
-        Vector4<T>&	operator*=( const T c );
+        T           operator[]( int index ) const;
+        T&          operator[]( int index );
+        Vector4<T>  operator-() const;
+        T           operator*( const Vector4<T> &v ) const;
+        Vector4<T>  operator*( const T c ) const;
+        Vector4<T>  cmul( const Vector4<T>& v ) const;
+        Vector4<T>  operator/( const T c ) const;
+        Vector4<T>  operator+( const Vector4<T> &v ) const;
+        Vector4<T>  operator-( const Vector4<T> &v ) const;
+        Vector4<T>& operator+=( const Vector4<T> &v );
+        Vector4<T>& operator-=( const Vector4<T> &v );
+        Vector4<T>& operator/=( const Vector4<T> &v );
+        Vector4<T>& operator+=( const T c );
+        Vector4<T>& operator-=( const T c );
+        Vector4<T>& operator/=( const T c );
+        Vector4<T>& operator*=( const T c );
 
         template <typename T2>
         operator Vector4<T2>() const;
 
-        bool		operator==( const Vector4<T> &v ) const;
-        bool		operator!=( const Vector4<T> &v ) const;
+        bool        operator==( const Vector4<T> &v ) const;
+        bool        operator!=( const Vector4<T> &v ) const;
 
-        T			length( void ) const;
-        T			lengthSqr( void ) const;
-        T			normalize( void );		// returns length
-        void		clamp( const Vector4<T> &min, const Vector4<T> &max );
+        T           length( void ) const;
+        T           lengthSqr( void ) const;
+        T           normalize( void );      // returns length
+        void        clamp( const Vector4<T> &min, const Vector4<T> &max );
 
-        size_t		dimension( void ) const;
+        size_t      dimension( void ) const;
 
         bool        isEqual( const Vector4<T> & other, T epsilon ) const;
 
-        const T*	ptr( void ) const;
-        T*			ptr( void );
+        const T*    ptr( void ) const;
+        T*          ptr( void );
 
         String      toString( void ) const;
 
         static Vector4<T> fromString( const String & s );
 
-        void		mix( const Vector4<T> &v1, const Vector4<T> &v2, float alpha );
+        void        mix( const Vector4<T> &v1, const Vector4<T> &v2, float alpha );
 
         T x, y, z, w;
     };
@@ -91,6 +93,15 @@ namespace cvt {
     template<typename T>
     inline Vector4<T>::Vector4()
     {
+    }
+
+    template<typename T>
+    inline Vector4<T>::Vector4( T value )
+    {
+        this->x = value;
+        this->y = value;
+        this->z = value;
+        this->w = value;
     }
 
     template<typename T>
@@ -254,7 +265,6 @@ namespace cvt {
         return *this;
     }
 
-
     template<typename T>
     inline Vector4<T>& Vector4<T>::operator/=( const T c )
     {
@@ -316,7 +326,6 @@ namespace cvt {
             || Math::abs( v.z - z ) > Math::EPSILOND
             || Math::abs( v.w - w ) > Math::EPSILOND;
     }
-
 
     template<typename T>
     inline T Vector4<T>::length( void ) const
@@ -408,7 +417,7 @@ namespace cvt {
         String deliminators("\n\r\t ");
         for( size_t i = 0; i < 4; i++ ){
             if( !it.nextToken( token, deliminators ) )
-                throw CVTException( "Could not create Matrix from String!" );
+                throw CVTException( "Could not create vector from string!" );
             m[ i ] = token.to<T>();
         }
 

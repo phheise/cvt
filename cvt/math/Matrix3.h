@@ -46,80 +46,80 @@ namespace cvt {
 
                             Matrix3<T>( void );
                             Matrix3<T>( const Matrix3<T>& mat3 );
-        explicit			Matrix3<T>( const Vector3<T>& x, const Vector3<T>& y, const Vector3<T>& z );
-        explicit			Matrix3<T>( const T a, const T b, const T c,
+        explicit            Matrix3<T>( const Vector3<T>& x, const Vector3<T>& y, const Vector3<T>& z );
+        explicit            Matrix3<T>( const T a, const T b, const T c,
                                         const T d, const T e, const T f,
                                         const T g, const T h, const T i );
-        explicit			Matrix3<T>( const T src[ 3 ][ 3 ] );
-        explicit			Matrix3<T>( const Matrix2<T>& mat2 );
-        explicit			Matrix3<T>( const Matrix4<T>& mat4 );
+        explicit            Matrix3<T>( const T src[ 3 ][ 3 ] );
+        explicit            Matrix3<T>( const Matrix2<T>& mat2 );
+        explicit            Matrix3<T>( const Matrix4<T>& mat4 );
 
-        const Vector3<T>&	operator[]( int index ) const;
-        Vector3<T>&			operator[]( int index );
+        const Vector3<T>&   operator[]( int index ) const;
+        Vector3<T>&         operator[]( int index );
         const T&            operator()( int r, int c ) const;
         T&                  operator()( int r, int c );
-        Matrix3<T>			operator-() const;
-        Matrix3<T>			operator*( const T c ) const;
-        Matrix3<T>			operator+( const T c ) const;
-        Matrix3<T>			operator-( const T c ) const;
-        Vector2<T>			operator*( const Vector2<T>& vec  ) const;
-        Vector3<T>			operator*( const Vector3<T>& vec ) const;
-        Matrix3<T>			operator*( const Matrix3<T>& m ) const;
-        Matrix3<T>			operator+( const Matrix3<T>& m ) const;
-        Matrix3<T>			operator-( const Matrix3<T>& m ) const;
-        Matrix3<T>&			operator*=( const T c );
-        Matrix3<T>&			operator+=( const T c );
-        Matrix3<T>&			operator-=( const T c );
-        Matrix3<T>&			operator*=( const Matrix3<T>& m );
-        Matrix3<T>&			operator+=( const Matrix3<T>& m );
-        Matrix3<T>&			operator-=( const Matrix3<T>& m );
+        Matrix3<T>          operator-() const;
+        Matrix3<T>          operator*( const T c ) const;
+        Matrix3<T>          operator+( const T c ) const;
+        Matrix3<T>          operator-( const T c ) const;
+        Vector2<T>          operator*( const Vector2<T>& vec  ) const;
+        Vector3<T>          operator*( const Vector3<T>& vec ) const;
+        Matrix3<T>          operator*( const Matrix3<T>& m ) const;
+        Matrix3<T>          operator+( const Matrix3<T>& m ) const;
+        Matrix3<T>          operator-( const Matrix3<T>& m ) const;
+        Matrix3<T>&         operator*=( const T c );
+        Matrix3<T>&         operator+=( const T c );
+        Matrix3<T>&         operator-=( const T c );
+        Matrix3<T>&         operator*=( const Matrix3<T>& m );
+        Matrix3<T>&         operator+=( const Matrix3<T>& m );
+        Matrix3<T>&         operator-=( const Matrix3<T>& m );
 
         template <typename T2>
         operator Matrix3<T2>() const;
 
-        bool				operator==( const Matrix3<T> &m ) const;
-        bool				operator!=( const Matrix3<T> &m ) const;
+        bool                operator==( const Matrix3<T> &m ) const;
+        bool                operator!=( const Matrix3<T> &m ) const;
 
-        Vector3<T>			row( size_t r ) const;
-        Vector3<T>			col( size_t c ) const;
+        Vector3<T>          row( size_t r ) const;
+        Vector3<T>          col( size_t c ) const;
 
-        void				setZero( void );
-        void				setIdentity( void );
-        bool				isIdentity( ) const;
-        bool				isSymmetric( ) const;
-        bool				isDiagonal( ) const;
+        void                setZero( void );
+        void                setIdentity( void );
+        bool                isIdentity( ) const;
+        bool                isSymmetric( ) const;
+        bool                isDiagonal( ) const;
         bool                isEqual( const Matrix3<T> & other, T epsilon ) const;
 
-        void				setDiagonal( const Vector3<T>& diag );
-        void				setRotationX( T rad );
-        void				setRotationY( T rad );
-        void				setRotationZ( T rad );
+        void                setDiagonal( const Vector3<T>& diag );
+        void                setRotationX( T rad );
+        void                setRotationY( T rad );
+        void                setRotationZ( T rad );
         void                setRotationXYZ( T angleX, T angleY, T angleZ );
-        void				setRotation( const Vector3<T>& axis, T rad );
+        void                setRotation( const Vector3<T>& axis, T rad );
 
-        void				setAffine( T theta, T phi, T sx, T sy, T tx, T ty );
-        void				setHomography( T theta, T phi, T sx, T sy, T tx, T ty, T v0, T v1 );
-        void				setProjectedRotation( T radx, T rady, T radz, T fx = 1024, T fy = 1024, T d = 1024 );
-        void				setSkewSymmetric( const Vector3<T>& t );
+        void                setAffine( T theta, T phi, T sx, T sy, T tx, T ty );
+        void                setHomography( T theta, T phi, T sx, T sy, T tx, T ty, T v0, T v1 );
+        void                setProjectedRotation( T radx, T rady, T radz, T fx = 1024, T fy = 1024, T d = 1024 );
+        void                setSkewSymmetric( const Vector3<T>& t );
 
 
-        T					trace( void ) const;
-        T					determinant( void ) const;
-        Matrix3<T>			transpose( void ) const;
-        Matrix3<T>&			transposeSelf( void );
-        Matrix3<T>			inverse( void ) const;
-        bool				inverseSelf( void );
-        void				svd( Matrix3<T>& u, Matrix3<T>& d, Matrix3<T>& vt ) const;
-        Matrix3<T>			pseudoInverse() const;
+        T                   trace( void ) const;
+        T                   determinant( void ) const;
+        Matrix3<T>          transpose( void ) const;
+        Matrix3<T>&         transposeSelf( void );
+        Matrix3<T>          inverse( void ) const;
+        bool                inverseSelf( void );
+        void                svd( Matrix3<T>& u, Matrix3<T>& d, Matrix3<T>& vt ) const;
+        Matrix3<T>          pseudoInverse() const;
 
-        void				toAxisAngle( Vector3<T>& axis, T& angle ) const;
+        void                toAxisAngle( Vector3<T>& axis, T& angle ) const;
 
-        Matrix4<T>			toMatrix4( void ) const;
-        Matrix2<T>			toMatrix2( void ) const;
+        Matrix4<T>          toMatrix4( void ) const;
+        Matrix2<T>          toMatrix2( void ) const;
 
-        int					dimension( void ) const;
-        const T*			ptr( void ) const;
-        T*					ptr( void );
+        int                 dimension( void ) const;
+        const T*            ptr( void ) const;
+        T*                  ptr( void );
 
         String              toString( void ) const;
         static Matrix3<T>   fromString( const String & s );
@@ -127,7 +127,7 @@ namespace cvt {
         friend std::ostream& operator<< <>( std::ostream& out, const Matrix3<T>& m );
 
         private:
-        Vector3<T>			mat[ 3 ];
+        Vector3<T>          mat[ 3 ];
     };
 
     template<typename T>
@@ -270,7 +270,6 @@ namespace cvt {
         return ret;
     }
 
-
     template<typename T>
     inline Matrix3<T> Matrix3<T>::operator*( const Matrix3<T>& m  ) const
     {
@@ -284,7 +283,6 @@ namespace cvt {
                            mat[ 2 ][ 0 ] * m[ 0 ][ 1 ] + mat[ 2 ][ 1 ] * m[ 1 ][ 1 ] + mat[ 2 ][ 2 ] * m[ 2 ][ 1 ],
                            mat[ 2 ][ 0 ] * m[ 0 ][ 2 ] + mat[ 2 ][ 1 ] * m[ 1 ][ 2 ] + mat[ 2 ][ 2 ] * m[ 2 ][ 2 ] );
     }
-
 
     template<typename T>
     inline Matrix3<T> Matrix3<T>::operator+( const Matrix3<T>& m  ) const
@@ -503,7 +501,6 @@ namespace cvt {
         mat[ 2 ][ 2 ] =                      cx * cy;
     }
 
-
     template<typename T>
     inline void	Matrix3<T>::setRotation( const Vector3<T>& _axis, T rad )
     {
@@ -705,7 +702,6 @@ namespace cvt {
         return mat[ 0 ][ 0 ] * cofactor[ 0 ] + mat[ 0 ][ 1 ] * cofactor[ 1 ] + mat[ 0 ][ 2 ] * cofactor[ 2 ];
     }
 
-
     template<typename T>
     inline Matrix3<T> Matrix3<T>::transpose() const
     {
@@ -760,12 +756,6 @@ namespace cvt {
     {
         Quaternion<T> q( *this );
         q.toAxisAngle( axis, angle );
-        /*angle = Math::acos( ( trace() -  ( T ) 1 ) / ( T ) 2 );
-        axis.x = mat[ 2 ][ 1 ] - mat[ 1 ][ 2 ];
-        axis.y = mat[ 0 ][ 2 ] - mat[ 2 ][ 0 ];
-        axis.z = mat[ 1 ][ 0 ] - mat[ 0 ][ 1 ];
-        axis /= Math::sin( angle ) * ( T ) 2;
-        axis.normalize();*/
     }
 
     template<typename T>
@@ -825,6 +815,5 @@ namespace cvt {
     }
 
 }
-
 
 #endif

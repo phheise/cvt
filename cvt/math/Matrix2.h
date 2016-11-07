@@ -41,63 +41,63 @@ namespace cvt {
         enum                { DIMENSION = 2 };
 
                             Matrix2<T>( void );
-        explicit			Matrix2<T>( const Vector2<T>& x, const Vector2<T>& y );
-        explicit			Matrix2<T>( const T a, const T b, const T c, const T d );
-        explicit			Matrix2<T>( const T src[ 2 ][ 2 ] );
-        explicit			Matrix2<T>( const Matrix3<T>& mat3 );
+        explicit            Matrix2<T>( const Vector2<T>& x, const Vector2<T>& y );
+        explicit            Matrix2<T>( const T a, const T b, const T c, const T d );
+        explicit            Matrix2<T>( const T src[ 2 ][ 2 ] );
+        explicit            Matrix2<T>( const Matrix3<T>& mat3 );
 
-        const Vector2<T>&	operator[]( int index ) const;
-        Vector2<T>&			operator[]( int index );
+        const Vector2<T>&   operator[]( int index ) const;
+        Vector2<T>&         operator[]( int index );
         const T&            operator()( int r, int c ) const;
         T&                  operator()( int r, int c );
-        Matrix2<T>			operator-() const;
-        Matrix2<T>			operator*( const T c ) const;
-        Matrix2<T>			operator+( const T c ) const;
-        Matrix2<T>			operator-( const T c ) const;
-        Vector2<T>			operator*( const Vector2<T> &vec ) const;
-        Matrix2<T>			operator*( const Matrix2<T>& m ) const;
-        Matrix2<T>			operator+( const Matrix2<T>& m ) const;
-        Matrix2<T>			operator-( const Matrix2<T>& m ) const;
-        Matrix2<T>&			operator*=( const T c );
-        Matrix2<T>&			operator+=( const T c );
-        Matrix2<T>&			operator-=( const T c );
-        Matrix2<T>&			operator*=( const Matrix2<T>& m );
-        Matrix2<T>&			operator+=( const Matrix2<T>& m );
-        Matrix2<T>&			operator-=( const Matrix2<T>& m );
+        Matrix2<T>          operator-() const;
+        Matrix2<T>          operator*( const T c ) const;
+        Matrix2<T>          operator+( const T c ) const;
+        Matrix2<T>          operator-( const T c ) const;
+        Vector2<T>          operator*( const Vector2<T> &vec ) const;
+        Matrix2<T>          operator*( const Matrix2<T>& m ) const;
+        Matrix2<T>          operator+( const Matrix2<T>& m ) const;
+        Matrix2<T>          operator-( const Matrix2<T>& m ) const;
+        Matrix2<T>&         operator*=( const T c );
+        Matrix2<T>&         operator+=( const T c );
+        Matrix2<T>&         operator-=( const T c );
+        Matrix2<T>&         operator*=( const Matrix2<T>& m );
+        Matrix2<T>&         operator+=( const Matrix2<T>& m );
+        Matrix2<T>&         operator-=( const Matrix2<T>& m );
 
-        bool				operator==( const Matrix2<T> &m ) const;
-        bool				operator!=( const Matrix2<T> &m ) const;
+        bool                operator==( const Matrix2<T> &m ) const;
+        bool                operator!=( const Matrix2<T> &m ) const;
 
         template <typename T2>
         operator Matrix2<T2>() const;
 
-        Vector2<T>			row( size_t r ) const;
-        Vector2<T>			col( size_t c ) const;
+        Vector2<T>          row( size_t r ) const;
+        Vector2<T>          col( size_t c ) const;
 
-        void				setZero( void );
-        void				setIdentity( void );
-        bool				isIdentity( ) const;
-        bool				isSymmetric( ) const;
-        bool				isDiagonal( ) const;
+        void                setZero( void );
+        void                setIdentity( void );
+        bool                isIdentity( ) const;
+        bool                isSymmetric( ) const;
+        bool                isDiagonal( ) const;
         bool                isEqual( const Matrix2<T> & other, T epsilon ) const;
 
-        void				setDiagonal( const Vector2<T>& diag );
-        void				setRotationZ( T rad );
+        void                setDiagonal( const Vector2<T>& diag );
+        void                setRotationZ( T rad );
 
-        T					trace( void ) const;
-        T					determinant( void ) const;
-        Matrix2<T>			transpose( void ) const;
-        Matrix2<T>&			transposeSelf( void );
-        Matrix2<T>			inverse( void ) const;
-        bool				inverseSelf( void );
-        void				svd( Matrix2<T>&, Matrix2<T>&, Matrix2<T>& ) const;
-        Matrix2<T>			pseudoInverse() const;
+        T                   trace( void ) const;
+        T                   determinant( void ) const;
+        Matrix2<T>          transpose( void ) const;
+        Matrix2<T>&         transposeSelf( void );
+        Matrix2<T>          inverse( void ) const;
+        bool                inverseSelf( void );
+        void                svd( Matrix2<T>&, Matrix2<T>&, Matrix2<T>& ) const;
+        Matrix2<T>          pseudoInverse() const;
 
-        Matrix3<T>			toMatrix3( void ) const;
+        Matrix3<T>          toMatrix3( void ) const;
 
-        int					dimension( void ) const;
-        const T*			ptr( void ) const;
-        T*					ptr( void );
+        int                 dimension( void ) const;
+        const T*            ptr( void ) const;
+        T*                  ptr( void );
 
         String              toString( void ) const;
         static Matrix2<T>   fromString( const String & s );
@@ -105,7 +105,7 @@ namespace cvt {
         friend std::ostream& operator<< <>( std::ostream& out, const Matrix2<T>& m );
 
         private:
-        Vector2<T>			mat[ 2 ];
+        Vector2<T>          mat[ 2 ];
     };
 
     template<typename T>
@@ -495,6 +495,5 @@ namespace cvt {
     }
 
 }
-
 
 #endif

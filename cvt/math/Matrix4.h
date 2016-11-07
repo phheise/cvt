@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -40,83 +41,85 @@ namespace cvt {
         typedef             T TYPE;
         enum                { DIMENSION = 4 };
 
-                            Matrix4<T>( void );
-                            Matrix4<T>( const Matrix4<T>& mat4 );
-        explicit			Matrix4<T>( const Vector4<T>& x, const Vector4<T>& y, const Vector4<T>& z, const Vector4<T>& w );
-        explicit			Matrix4<T>( const T a, const T b, const T c, const T d,
+        Matrix4<T>( void );
+        Matrix4<T>( const Matrix4<T>& mat4 );
+        explicit            Matrix4<T>( const Vector4<T>& x, const Vector4<T>& y, const Vector4<T>& z, const Vector4<T>& w );
+        explicit            Matrix4<T>( const T a, const T b, const T c, const T d,
                                         const T e, const T f, const T g, const T h,
                                         const T i, const T j, const T k, const T l,
                                         const T m, const T n, const T o, const T p );
-        explicit			Matrix4<T>( const T src[ 4 ][ 4 ] );
-        explicit			Matrix4<T>( const Matrix3<T>& mat3 );
+        explicit            Matrix4<T>( const T src[ 4 ][ 4 ] );
+        explicit            Matrix4<T>( const Matrix3<T>& mat3 );
 
-        const Vector4<T>&	operator[]( int index ) const;
-        Vector4<T>&			operator[]( int index );
+        const Vector4<T>&   operator[]( int index ) const;
+        Vector4<T>&         operator[]( int index );
         const T&            operator()( int r, int c ) const;
         T&                  operator()( int r, int c );
-        Matrix4<T>			operator-() const;
-        Matrix4<T>			operator*( const T c ) const;
-        Matrix4<T>			operator+( const T c ) const;
-        Matrix4<T>			operator-( const T c ) const;
-        Vector3<T>			operator*( const Vector3<T> &vec ) const;
-        Vector4<T>			operator*( const Vector4<T> &vec ) const;
-        Matrix4<T>			operator*( const Matrix4<T>& m ) const;
-        Matrix4<T>			operator+( const Matrix4<T>& m ) const;
-        Matrix4<T>			operator-( const Matrix4<T>& m ) const;
-        Matrix4<T>&			operator*=( const T c );
-        Matrix4<T>&			operator+=( const T c );
-        Matrix4<T>&			operator-=( const T c );
-        Matrix4<T>&			operator*=( const Matrix4<T>& m );
-        Matrix4<T>&			operator+=( const Matrix4<T>& m );
-        Matrix4<T>&			operator-=( const Matrix4<T>& m );
+        Matrix4<T>          operator-() const;
+        Matrix4<T>          operator*( const T c ) const;
+        Matrix4<T>          operator+( const T c ) const;
+        Matrix4<T>          operator-( const T c ) const;
+        Vector3<T>          operator*( const Vector3<T> &vec ) const;
+        Vector4<T>          operator*( const Vector4<T> &vec ) const;
+        Matrix4<T>          operator*( const Matrix4<T>& m ) const;
+        Matrix4<T>          operator+( const Matrix4<T>& m ) const;
+        Matrix4<T>          operator-( const Matrix4<T>& m ) const;
+        Matrix4<T>&         operator*=( const T c );
+        Matrix4<T>&         operator+=( const T c );
+        Matrix4<T>&         operator-=( const T c );
+        Matrix4<T>&         operator*=( const Matrix4<T>& m );
+        Matrix4<T>&         operator+=( const Matrix4<T>& m );
+        Matrix4<T>&         operator-=( const Matrix4<T>& m );
 
         template <typename T2>
         operator Matrix4<T2>() const;
 
-        bool				operator==( const Matrix4<T> &m ) const;
-        bool				operator!=( const Matrix4<T> &m ) const;
+        bool                operator==( const Matrix4<T> &m ) const;
+        bool                operator!=( const Matrix4<T> &m ) const;
 
-        Vector4<T>			row( size_t r ) const;
-        Vector4<T>			col( size_t c ) const;
+        Vector4<T>          row( size_t r ) const;
+        Vector4<T>          col( size_t c ) const;
 
-        void				setZero( void );
-        void				setIdentity( void );
-        bool				isIdentity( ) const;
-        bool				isSymmetric( ) const;
-        bool				isDiagonal( ) const;
+        void                setZero( void );
+        void                setIdentity( void );
+        bool                isIdentity( ) const;
+        bool                isSymmetric( ) const;
+        bool                isDiagonal( ) const;
         bool                isEqual( const Matrix4<T> & other, T epsilon ) const;
 
-        void				setDiagonal( const Vector4<T>& diag );
-        void				setRotationX( T rad );
-        void				setRotationY( T rad );
-        void				setRotationZ( T rad );
+        void                setDiagonal( const Vector4<T>& diag );
+        void                setRotationX( T rad );
+        void                setRotationY( T rad );
+        void                setRotationZ( T rad );
         void                setRotationXYZ( T angleX, T angleY, T angleZ );
-        void				setRotation( const Vector3<T>& axis, T rad );
-        void				setTranslation( T x, T y, T z );
+        void                setRotation( const Vector3<T>& axis, T rad );
+        void                setTranslation( T x, T y, T z );
 
-        T					trace( void ) const;
-        T					determinant( void ) const;
-        Matrix4<T>			transpose( void ) const;
-        Matrix4<T>&			transposeSelf( void );
-        Matrix4<T>			inverse( void ) const;
-        bool				inverseSelf( void );
-        void				svd( Matrix4<T>& u, Matrix4<T>& d, Matrix4<T>& vt ) const;
-        Matrix4<T>			pseudoInverse() const;
+        T                   trace( void ) const;
+        T                   determinant( void ) const;
+        Matrix4<T>          transpose( void ) const;
+        Matrix4<T>&         transposeSelf( void );
+        Matrix4<T>          inverse( void ) const;
+        bool                inverseSelf( void );
+        void                svd( Matrix4<T>& u, Matrix4<T>& d, Matrix4<T>& vt ) const;
+        Matrix4<T>          pseudoInverse() const;
 
-        Matrix3<T>			toMatrix3( void ) const;
+        Matrix3<T>          toMatrix3( void ) const;
 
-        int					dimension( void ) const;
-        const T*			ptr( void ) const;
-        T*					ptr( void );
+        int                 dimension( void ) const;
+        const T*            ptr( void ) const;
+        T*                  ptr( void );
 
         String              toString( void ) const;
         static Matrix4<T>   fromString( const String & s );
 
+        static T            translationalDistance( const Matrix4& a, const Matrix4& b );
+        static T            angularDistance( const Matrix4& a, const Matrix4& b );
 
         friend std::ostream& operator<< <>( std::ostream& out, const Matrix4<T>& m );
 
         private:
-        Vector4<T>			mat[ 4 ];
+        Vector4<T>          mat[ 4 ];
     };
 
     template<typename T>
@@ -358,7 +361,6 @@ namespace cvt {
         return *this;
     }
 
-
     template<typename T>
     inline bool Matrix4<T>::operator==( const Matrix4<T> &m ) const
     {
@@ -391,7 +393,6 @@ namespace cvt {
     {
         return Vector4<T>( mat[ 0 ][ c ], mat[ 1 ][ c ], mat[ 2 ][ c ], mat[ 3 ][ c ] );
     }
-
 
     template<typename T>
     inline void Matrix4<T>::setZero()
@@ -449,7 +450,6 @@ namespace cvt {
         mat[ 3 ].z = 0;
         mat[ 3 ].w = diag.w;
     }
-
 
     template<typename T>
     inline void Matrix4<T>::setRotationX( T rad )
@@ -627,7 +627,6 @@ namespace cvt {
         mat[ 2 ][ 3 ] = z;
     }
 
-
     template<>
     inline bool Matrix4<double>::isIdentity() const
     {
@@ -732,7 +731,6 @@ namespace cvt {
         return mat[ 0 ][ 0 ] * det3_123_123 - mat[ 0 ][ 1 ] * det3_123_023 + mat[ 0 ][ 2 ] * det3_123_013 - mat[ 0 ][ 3 ] * det3_123_012;
     }
 
-
     template<typename T>
     inline Matrix4<T> Matrix4<T>::transpose() const
     {
@@ -773,7 +771,6 @@ namespace cvt {
         return *this;
     }
 
-
     template<typename T>
     inline Matrix4<T> Matrix4<T>::inverse( void ) const
     {
@@ -783,7 +780,6 @@ namespace cvt {
         inv.inverseSelf();
         return inv;
     }
-
 
     template<typename T>
     inline Matrix4<T> Matrix4<T>::pseudoInverse() const
@@ -807,7 +803,6 @@ namespace cvt {
                            mat[ 1 ][ 0 ], mat[ 1 ][ 1 ], mat[ 1 ][ 2 ],
                            mat[ 2 ][ 0 ], mat[ 2 ][ 1 ], mat[ 2 ][ 2 ] );
     }
-
 
     template<typename T>
     inline int	Matrix4<T>::dimension( void ) const
@@ -842,6 +837,32 @@ namespace cvt {
         return s;
     }
 
+    /** \brief Calculate the length of the translational distance in terms of the euclidean distance
+     *   between two matrices a and b representing transformations of SE3.
+     *   Given [R|t]=a^-1 * b we return the euclidean distance of t.
+     */
+    template<typename T>
+    inline T Matrix4<T>::translationalDistance( const Matrix4& a, const Matrix4& b )
+    {
+        Matrix4<T> c = a.inverse() * b;
+        Vector4<T> vec4 = c.col( 3 );
+        Vector3<T> vec3( vec4.x, vec4.y, vec4.z );
+        return vec3.length();
+    }
+
+    /** \brief Calculate the angle in radians of the rotational transformation
+     *   between two matrices a and b representing transformations of SE3.
+     *   Calculate only the angle part of the angle axis reprensentation
+     *   of R given by [R|t]=a^-1 * b.
+     */
+    template<typename T>
+    inline T Matrix4<T>::angularDistance( const Matrix4& a, const Matrix4& b )
+    {
+        Matrix4<T> c = a.inverse() * b;
+        Matrix3<T> mat3 = c.toMatrix3();
+        return Math::acos( Math::clamp<T>( ( mat3.trace() - ( T ) 1 ) * ( T ) 0.5, -1, 1 ) );
+    }
+
     template<typename T>
     inline std::ostream& operator<<( std::ostream& out, const Matrix4<T>& m )
     {
@@ -853,6 +874,5 @@ namespace cvt {
     }
 
 }
-
 
 #endif

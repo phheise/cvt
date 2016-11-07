@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -74,25 +75,41 @@ namespace cvt {
          *	Mix two values such that
          *	return = ( 1 - alpha ) * a + b * alpha
          * */
-        template<typename T> static inline T mix( T a, T b, float alpha ) { return a + ( b - a ) * alpha; }
-        template<typename T> static inline T mix( T a, T b, double alpha ) { return a + ( b - a ) * alpha; }
+        template<typename T> static inline T mix( T a, T b, float alpha )
+        {
+            return a + ( b - a ) * alpha;
+        }
 
-        template<typename T> static inline T clamp( T v, T min, T max ) { return ( v < min ) ? min : ( v > max ) ? max : v; }
+        template<typename T> static inline T mix( T a, T b, double alpha )
+        {
+            return a + ( b - a ) * alpha;
+        }
 
-		template<typename T> static inline T smoothstep( T edge0, T edge1, T x )
-		{
-			T t = clamp<T>( ( x - edge0 ) / ( edge1 - edge0 ), 0, 1);
-			return t * t * ( ( ( T ) 3 ) - ( ( T ) 2 ) * t);
-		}
+        template<typename T> static inline T clamp( T v, T min, T max )
+        {
+            return ( v < min ) ? min : ( v > max ) ? max : v;
+        }
 
-		template<typename T> static inline T smoothstep( T x )
-		{
-			T t = clamp<T>( x, 0, 1 );
-			return t * t * ( ( ( T ) 3 ) - ( ( T ) 2 ) * t);
-		}
+        template<typename T> static inline T smoothstep( T edge0, T edge1, T x )
+        {
+            T t = clamp<T>( ( x - edge0 ) / ( edge1 - edge0 ), 0, 1);
+            return t * t * ( ( ( T ) 3 ) - ( ( T ) 2 ) * t);
+        }
 
-        static inline size_t pad16( size_t v ) { return v & 0xf ?  ( ( v | 0xf ) + 1 ) : v; }
-        static inline size_t pad32( size_t v ) { return v & 0x1f ?  ( ( v | 0x1f ) + 1 ) : v; }
+        template<typename T> static inline T smoothstep( T x )
+        {
+            T t = clamp<T>( x, 0, 1 );
+            return t * t * ( ( ( T ) 3 ) - ( ( T ) 2 ) * t);
+        }
+
+        static inline size_t pad16( size_t v )
+        {
+            return v & 0xf ? ( ( v | 0xf ) + 1 ) : v;
+        }
+        static inline size_t pad32( size_t v )
+        {
+            return v & 0x1f ? ( ( v | 0x1f ) + 1 ) : v;
+        }
 
         static inline size_t pad( size_t v, size_t multiple )
         {
@@ -102,15 +119,15 @@ namespace cvt {
             return v + multiple - r;
         }
 
-		static inline uint32_t popcount( uint32_t v )
-		{
-			/* Bit Twiddling Hacks
-´			   By Sean Eron Anderson
-			   Standford Graphics */
-			v = v - ( ( v >> 1 ) & 0x55555555 );
-			v = ( v & 0x33333333 ) + ( ( v >> 2 ) & 0x33333333 );
-			return ( ( v + ( ( v >> 4 ) & 0xF0F0F0F ) ) * 0x1010101 ) >> 24;
-		}
+        static inline uint32_t popcount( uint32_t v )
+        {
+            /* Bit Twiddling Hacks
+´              By Sean Eron Anderson
+               Standford Graphics */
+            v = v - ( ( v >> 1 ) & 0x55555555 );
+            v = ( v & 0x33333333 ) + ( ( v >> 2 ) & 0x33333333 );
+            return ( ( v + ( ( v >> 4 ) & 0xF0F0F0F ) ) * 0x1010101 ) >> 24;
+        }
 
         template<typename T> static inline T sqr( T v ) { return v * v; }
 
@@ -142,34 +159,34 @@ namespace cvt {
         }
 
         template<typename T>
-            static inline T epsilon()
-            {
-                return 1;
-            }
+        static inline T epsilon()
+        {
+            return 1;
+        }
 
         template<>
-            inline float epsilon<float>()
-            {
-                return EPSILONF;
-            }
+        inline float epsilon<float>()
+        {
+            return EPSILONF;
+        }
 
         template<>
-            inline double epsilon<double>()
-            {
-                return EPSILOND;
-            }
+        inline double epsilon<double>()
+        {
+            return EPSILOND;
+        }
 
         template <typename T>
-            static inline T deg2Rad( T a )
-            {
-                return a * PI / ( T )180;
-            }
+        static inline T deg2Rad( T a )
+        {
+            return a * PI / ( T )180;
+        }
 
         template <typename T>
-            static inline T rad2Deg( T a )
-            {
-                return a * ( T )180 / PI;
-            }
+        static inline T rad2Deg( T a )
+        {
+            return a * ( T )180 / PI;
+        }
 
         static inline float sqrt( float f )
         {
@@ -182,10 +199,10 @@ namespace cvt {
         }
 
         template <typename T>
-            static inline float sqrt( T f )
-            {
-                return ::sqrtf( ( float )f );
-            }
+        static inline float sqrt( T f )
+        {
+            return ::sqrtf( ( float )f );
+        }
 
         static inline float cbrt( float f )
         {
@@ -267,17 +284,19 @@ namespace cvt {
         {
             return ::asin( x );
         }
-        /*
-           static inline void sincos( float rad, float& sin, float& cos )
-           {
-           ::sincosf( rad, &sin, &cos );
-           }
 
-           static inline void sincos( double rad, double& sin, double& cos )
-           {
-           ::sincos( rad, &sin, &cos );
-           }
+        /*
+          static inline void sincos( float rad, float& sin, float& cos )
+          {
+          ::sincosf( rad, &sin, &cos );
+          }
+
+          static inline void sincos( double rad, double& sin, double& cos )
+          {
+          ::sincos( rad, &sin, &cos );
+          }
          */
+
         static inline float round( float x )
         {
             return ::roundf( x );
@@ -346,6 +365,16 @@ namespace cvt {
         static inline double tan( double x )
         {
             return ::tan( x );
+        }
+
+        static inline float atan( float x )
+        {
+            return ::atanf( x );
+        }
+
+        static inline double atan( double x )
+        {
+            return ::atan( x );
         }
 
         static inline float tanh( float x )
@@ -607,7 +636,7 @@ namespace cvt {
                         infNorm = rowSum;
                 }
 
-                int j = max( 0, 1 + int( log( infNorm ) / log( 2.0 ) ) );
+                int j = max( 0, 1 + ( int ) ( Math::log2( infNorm ) ) );
 
                 // tmpA = A * 2^j
                 Matrix tmpA = A / ( 1 << j ) ;
@@ -620,21 +649,20 @@ namespace cvt {
                 double c = 1.0;
                 double s = -1.0;
                 size_t q = padeApprox;
-                size_t twoq = (padeApprox << 1);
+                size_t twoq = ( padeApprox << 1 );
 
                 for( size_t k = 1; k < padeApprox; ++k ){
-                    c *= q / ( double )(twoq * k);
+                    c *= ( double ) q / ( double )( twoq * k );
                     X = tmpA * X;
-                    cX = X*c;
+                    cX = X * c;
                     N += cX;
-                    D += ( s*cX );
-                    --q;
-                    --twoq;
-                    s *= -1;
+                    D += s * cX;
+                    q--;
+                    twoq--;
+                    s = -s;
                 }
 
-                result = D.inverse();
-                result *= N;
+                result = D.inverse() * N;
 
                 for( int k = 0; k < j; ++k )
                     result = result * result;
