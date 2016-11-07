@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -41,13 +42,17 @@ namespace cvt {
 
             void save( const String& filename ) const;
 
+            bool hasGroup( const String& name ) const { return _groups.find( name ) != _groups.end(); }
+
+            bool hasValueForName( const String& name, const String& group = "" ) const;
+
             /**
              *  Saving to original filename
              */
             void save() const;
 
-        private:           
-            typedef std::map<String, String> MapType;            
+        private:
+            typedef std::map<String, String> MapType;
             typedef std::map<String, MapType> GroupMapType;
 
             String       _fileName;
@@ -61,6 +66,29 @@ namespace cvt {
 
             void writeGroup( std::ofstream& out, const MapType& map ) const;
     };
+
+
+    inline bool ConfigFile::hasValueForName( const String& name, const String& group ) const
+    {
+        String queryGrp = group;
+        if( queryGrp == "" ){
+            queryGrp = "default";
+        }
+
+        GroupMapType::const_iterator groupIter = _groups.find( queryGrp );
+        if( groupIter == _groups.end() ){
+            // group not present
+            return false;
+        }
+
+        // groupIter is the map with the values:
+        MapType::const_iterator valIter = groupIter->second.find( name );
+        if( valIter == groupIter->second.end() ){
+            // not present
+            return false;
+        }
+        return true;
+    }
 
     template <class T>
     inline T ConfigFile::valueForName( const String& name, T defaultValue, const String& group )

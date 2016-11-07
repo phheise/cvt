@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -69,11 +70,15 @@ namespace cvt {
             virtual void SetValue2f( float* dst, const float (&value)[ 2 ], const size_t n ) const;
             virtual void SetValue4f( float* dst, const float (&value)[ 4 ], const size_t n ) const;
 
+            virtual void SetValueS16( int16_t* dst, const int16_t value, const size_t n ) const;
+
             /* memory block and constants */
             virtual void AddValue1f( float* dst, float const* src, const float value, const size_t n ) const;
             virtual void SubValue1f( float* dst, float const* src, const float value, const size_t n ) const;
             virtual void MulValue1f( float* dst, float const* src, const float value, const size_t n ) const;
             virtual void DivValue1f( float* dst, float const* src, const float value, const size_t n ) const;
+
+            virtual void AddValueS16( int16_t* dst, const int16_t* src, const int16_t value, const size_t n ) const;
 
             virtual void MulValue1ui16( uint16_t* dst, uint16_t const* src, float value, size_t n ) const;
 
@@ -88,13 +93,13 @@ namespace cvt {
             virtual void MulAddValue4f( float* dst, float const* src1, const float (&value)[ 4 ], const size_t n ) const;
             virtual void MulSubValue4f( float* dst, float const* src1, const float (&value)[ 4 ], const size_t n ) const;
 
-			virtual void MinValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const;
-			virtual void MinValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const;
-			virtual void MinValue1f( float* dst, const float* src1, const float* src2, size_t n ) const;
+            virtual void MinValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const;
+            virtual void MinValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const;
+            virtual void MinValue1f( float* dst, const float* src1, const float* src2, size_t n ) const;
 
-			virtual void MaxValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const;
-			virtual void MaxValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const;
-			virtual void MaxValue1f( float* dst, const float* src1, const float* src2, size_t n ) const;
+            virtual void MaxValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const;
+            virtual void MaxValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const;
+            virtual void MaxValue1f( float* dst, const float* src1, const float* src2, size_t n ) const;
 
             virtual void MinValueVertU8( uint8_t* dst, const uint8_t** bufs, size_t numbufs, size_t n ) const;
             virtual void MinValueVertU16( uint16_t* dst, const uint16_t** bufs, size_t numbufs, size_t n ) const;
@@ -104,15 +109,14 @@ namespace cvt {
             virtual void MaxValueVertU16( uint16_t* dst, const uint16_t** bufs, size_t numbufs, size_t n ) const;
             virtual void MaxValueVert1f( float* dst, const float** bufs, size_t numbufs, size_t n ) const;
 
+            /* morphological ops */
+            virtual void erodeSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const;
+            virtual void erodeSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const;
+            virtual void erodeSpan1f( float* dst, const float* src, size_t n, size_t radius ) const;
 
-			/* morphological ops */
-			virtual void erodeSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const;
-			virtual void erodeSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const;
-			virtual void erodeSpan1f( float* dst, const float* src, size_t n, size_t radius ) const;
-
-			virtual void dilateSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const;
-			virtual void dilateSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const;
-			virtual void dilateSpan1f( float* dst, const float* src, size_t n, size_t radius ) const;
+            virtual void dilateSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const;
+            virtual void dilateSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const;
+            virtual void dilateSpan1f( float* dst, const float* src, size_t n, size_t radius ) const;
 
             /* memory blocks */
 
@@ -147,6 +151,16 @@ namespace cvt {
             virtual float SSD( const float* src1, const float* src2, const size_t n ) const;
             virtual float SSD( uint8_t const* src1, uint8_t const* src2, const size_t n ) const;
 
+            virtual void meanVariance( float& mean, float& variance, const float* src, const size_t n ) const;
+
+            /*
+               @brief Compute the median by successive binning using the approximate variant as proposed by Ryan J. Tibshirani "Fast Computation of the Median by Successive Binning".
+               @param src input array
+               @param n   size of the input array
+               @return    the approximated median value
+               */
+            virtual float medianBinApproximate( const float* src, const size_t n ) const;
+
             /**
              * @brief sumSqr - compute sum of squares
              * @param src   input values
@@ -159,7 +173,7 @@ namespace cvt {
             virtual size_t SAD( uint8_t const* src1, uint8_t const* src2, const size_t n ) const;
 
             virtual float NCC( const float* src1, const float* src2, const size_t n ) const;
-            
+
             /* Infinite Impulse Response */
             /* IIR_#coefs_#pass_#direction_#channels_inputType */
             virtual void IIR4FwdHorizontal4Fx( Fixed* dst, const uint8_t * src, size_t width, const Fixed * n,
@@ -174,14 +188,14 @@ namespace cvt {
             virtual void IIR4BwdVertical4Fx( uint8_t * dst, size_t dstride, Fixed* fwdRes,
                                              size_t h, const Fixed * n, const Fixed * d, const Fixed & b ) const;
 
-			/* add vertical */
-			virtual void AddVert_f( float* dst, const float**bufs, size_t numbufs, size_t width ) const;
-			virtual void AddVert_f_to_u8( uint8_t* dst, const float**bufs, size_t numbufs, size_t width ) const;
-			virtual void AddVert_f_to_s16( int16_t* dst, const float**bufs, size_t numbufs, size_t width ) const;
+            /* add vertical */
+            virtual void AddVert_f( float* dst, const float**bufs, size_t numbufs, size_t width ) const;
+            virtual void AddVert_f_to_u8( uint8_t* dst, const float**bufs, size_t numbufs, size_t width ) const;
+            virtual void AddVert_f_to_s16( int16_t* dst, const float**bufs, size_t numbufs, size_t width ) const;
 
-			virtual void AddVert_fx_to_u8( uint8_t* dst, const Fixed** bufs, size_t numbufs, size_t width ) const;
+            virtual void AddVert_fx_to_u8( uint8_t* dst, const Fixed** bufs, size_t numbufs, size_t width ) const;
 
-			/* Convolution */
+            /* Convolution */
             virtual void ConvolveHorizontal1f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const;
             virtual void ConvolveHorizontal2f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const;
             virtual void ConvolveHorizontal4f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const;
@@ -252,6 +266,10 @@ namespace cvt {
             virtual void Conv_BGRAu8_to_GRAYf( float* _dst, uint8_t const* _src, const size_t n ) const;
             virtual void Conv_RGBAu8_to_GRAYu8( uint8_t* _dst, uint8_t const* _src, const size_t n ) const;
             virtual void Conv_BGRAu8_to_GRAYu8( uint8_t* _dst, uint8_t const* _src, const size_t n ) const;
+
+            virtual void Conv_RGBAu16_to_GRAYf( float* _dst, uint16_t const* _src, const size_t n ) const;
+            virtual void Conv_BGRAu16_to_GRAYf( float* _dst, uint16_t const* _src, const size_t n ) const;
+
             virtual void Conv_RGBAf_to_GRAYf( float* _dst, const float* _src, const size_t n ) const;
             virtual void Conv_BGRAf_to_GRAYf( float* _dst, const float* _src, const size_t n ) const;
 
@@ -277,7 +295,6 @@ namespace cvt {
             virtual void Conv_YUV420u8_to_RGBAu8( uint8_t* dst, const uint8_t* srcy, const uint8_t* srcu, const uint8_t* srcv, const size_t n ) const;
             virtual void Conv_YUV420u8_to_BGRAu8( uint8_t* dst, const uint8_t* srcy, const uint8_t* srcu, const uint8_t* srcv, const size_t n ) const;
 
-
             virtual void Decompose_4f( float* dst1, float* dst2, float* dst3, float* dst4, const float* src, size_t n ) const;
             virtual void Decompose_4f_to_3f( float* dst1, float* dst2, float* dst3, const float* src, size_t n ) const;
             virtual void Decompose_2f( float* dst1, float* dst2, const float* src, size_t n ) const;
@@ -286,19 +303,20 @@ namespace cvt {
             virtual void Decompose_4u8_to_3u8( uint8_t* dst1, uint8_t* dst2, uint8_t* dst3, const uint8_t* src, size_t n ) const;
             virtual void Decompose_2u8( uint8_t* dst1, uint8_t* dst2, const uint8_t* src, size_t n ) const;
 
+            virtual void MinMax_1f( float& min, float& max, const float* src, size_t n ) const;
 
-			virtual void BoxFilterHorizontal_1u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const;
-			virtual void BoxFilterHorizontal_1f( float* dst, const float* src, size_t radius, size_t width ) const;
+            virtual void BoxFilterHorizontal_1u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const;
+            virtual void BoxFilterHorizontal_1f( float* dst, const float* src, size_t radius, size_t width ) const;
 
-			virtual void BoxFilterVert_f_to_u8( uint8_t* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const;
-			virtual void BoxFilterVert_f( float* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const;
+            virtual void BoxFilterVert_f_to_u8( uint8_t* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const;
+            virtual void BoxFilterVert_f( float* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const;
 
-			/*virtual void BoxFilter_2u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const;
-			virtual void BoxFilter_4u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const;
+            /*virtual void BoxFilter_2u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const;
+            virtual void BoxFilter_4u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const;
 
-			virtual void BoxFilter_1f( float* dst, const float* src, size_t radius, size_t width ) const;
-			virtual void BoxFilter_2f( float* dst, const float* src, size_t radius, size_t width ) const;
-			virtual void BoxFilter_4f( float* dst, const float* src, size_t radius, size_t width ) const;*/
+            virtual void BoxFilter_1f( float* dst, const float* src, size_t radius, size_t width ) const;
+            virtual void BoxFilter_2f( float* dst, const float* src, size_t radius, size_t width ) const;
+            virtual void BoxFilter_4f( float* dst, const float* src, size_t radius, size_t width ) const;*/
 
             /* convolve with horizontal gaussian [ 1 4 6 4 1 ] and store the odd results in u16 - even results are discarded/not calculated */
             virtual void pyrdownHalfHorizontal_1u8_to_1u16( uint16_t* dst, const uint8_t* src, size_t n ) const;
@@ -320,7 +338,7 @@ namespace cvt {
             virtual void warpBilinear1u8( uint8_t* dst, const float* coords, const uint8_t* src, size_t srcStride, size_t srcWidth, size_t srcHeight, uint8_t fill, size_t n ) const;
             virtual void warpBilinear4u8( uint8_t* dst, const float* coords, const uint8_t* src, size_t srcStride, size_t srcWidth, size_t srcHeight, uint32_t fill, size_t n ) const;
 
-			virtual void harrisScore1f( float* dst, const float* boxdx2, const float* boxdy2, const float* boxdxdy, float kappa, size_t width ) const;
+            virtual void harrisScore1f( float* dst, const float* boxdx2, const float* boxdy2, const float* boxdxdy, float kappa, size_t width ) const;
 
             virtual float harrisResponse1u8( const uint8_t* _src, size_t srcStride, size_t w, size_t h, const float k ) const;
             virtual float harrisResponse1u8( float & xx, float & xy, float& yy, const uint8_t* _src, size_t srcStride, size_t w, size_t h, const float k ) const;
@@ -329,10 +347,10 @@ namespace cvt {
             virtual void debayer_EVEN_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
             virtual void debayer_ODD_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
 
-			virtual void debayerhq_EVEN_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
-													   const uint32_t* src4, const uint32_t* src5, size_t n ) const;
-			virtual void debayerhq_ODD_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
-													   const uint32_t* src4, const uint32_t* src5, size_t n ) const;
+            virtual void debayerhq_EVEN_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
+                                                       const uint32_t* src4, const uint32_t* src5, size_t n ) const;
+            virtual void debayerhq_ODD_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
+                                                       const uint32_t* src4, const uint32_t* src5, size_t n ) const;
 
             virtual void debayer_EVEN_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
             virtual void debayer_ODD_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
@@ -342,25 +360,25 @@ namespace cvt {
 
             virtual size_t hammingDistance( const uint8_t* src1, const uint8_t* src2, size_t n ) const;
 
-			// prefix sum for 1 channel images
-			virtual void prefixSum1_u8_to_f( float * dst, size_t dstStride, const uint8_t* src, size_t srcStride, size_t width, size_t height ) const;
-			virtual void prefixSum1_f_to_f( float * dst, size_t dstStride, const float* src, size_t srcStride, size_t width, size_t height ) const;
-			virtual void prefixSum1_xxxxu8_to_f( float * dst, size_t dstStride, const uint8_t * src, size_t srcStride, size_t width, size_t height ) const;
+            // prefix sum for 1 channel images
+            virtual void prefixSum1_u8_to_f( float * dst, size_t dstStride, const uint8_t* src, size_t srcStride, size_t width, size_t height ) const;
+            virtual void prefixSum1_f_to_f( float * dst, size_t dstStride, const float* src, size_t srcStride, size_t width, size_t height ) const;
+            virtual void prefixSum1_xxxxu8_to_f( float * dst, size_t dstStride, const uint8_t * src, size_t srcStride, size_t width, size_t height ) const;
 
-			// prefix sum and square sum
-			virtual void prefixSumSqr1_u8_to_f( float * dst, size_t dStride, const uint8_t * src, size_t srcStride, size_t width, size_t height ) const;
-			virtual void prefixSumSqr1_f_to_f( float * dst, size_t dStride, const float* src, size_t srcStride, size_t width, size_t height ) const;
+            // prefix sum and square sum
+            virtual void prefixSumSqr1_u8_to_f( float * dst, size_t dStride, const uint8_t * src, size_t srcStride, size_t width, size_t height ) const;
+            virtual void prefixSumSqr1_f_to_f( float * dst, size_t dStride, const float* src, size_t srcStride, size_t width, size_t height ) const;
 
-			virtual void boxFilterPrefixSum1_f_to_f( float* dst, size_t dstride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const;
-			virtual void boxFilterPrefixSum1_f_to_u8( uint8_t* dst, size_t dstride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const;
+            virtual void boxFilterPrefixSum1_f_to_f( float* dst, size_t dstride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const;
+            virtual void boxFilterPrefixSum1_f_to_u8( uint8_t* dst, size_t dstride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const;
 
-			virtual void adaptiveThreshold1_f_to_u8( uint8_t* dst, const float* src, const float* srcmean, size_t n, float t ) const;
-			virtual void adaptiveThreshold1_f_to_f( float* dst, const float* src, const float* srcmean, size_t n, float t ) const;
+            virtual void adaptiveThreshold1_f_to_u8( uint8_t* dst, const float* src, const float* srcmean, size_t n, float t ) const;
+            virtual void adaptiveThreshold1_f_to_f( float* dst, const float* src, const float* srcmean, size_t n, float t ) const;
 
-			virtual void threshold1_f_to_u8( uint8_t* dst, const float* src, size_t n, float t ) const;
-			virtual void threshold1_f_to_f( float* dst, const float* src, size_t n, float t ) const;
-			virtual void threshold1_u8_to_u8( uint8_t* dst, const uint8_t* src, size_t n, uint8_t t ) const;
-			virtual void threshold1_u8_to_f( float* dst, const uint8_t* src, size_t n, uint8_t t ) const;
+            virtual void threshold1_f_to_u8( uint8_t* dst, const float* src, size_t n, float t ) const;
+            virtual void threshold1_f_to_f( float* dst, const float* src, size_t n, float t ) const;
+            virtual void threshold1_u8_to_u8( uint8_t* dst, const uint8_t* src, size_t n, uint8_t t ) const;
+            virtual void threshold1_u8_to_f( float* dst, const uint8_t* src, size_t n, uint8_t t ) const;
 
             virtual void sumPoints( Vector2f& dst, const Vector2f* src, size_t n ) const;
             virtual void sumPoints( Vector3f& dst, const Vector3f* src, size_t n ) const;

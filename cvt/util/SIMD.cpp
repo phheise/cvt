@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -689,7 +690,12 @@ namespace cvt {
     };
 
 #define SRGB_U8_TO_F( x ) ( _table_srgb_u8_f[ x ] )
-#define U8_TO_F( x )	  ( _table_alpha_u8_f[ x ] )
+#define U8_TO_F( x )      ( _table_alpha_u8_f[ x ] )
+
+// Conversion coefficents from linear RGB to LUMA according to ITU-R BT.709:
+#define RED_LUMA_BT709f     0.2126f
+#define GREEN_LUMA_BT709f   0.7152f
+#define BLUE_LUMA_BT709f    0.0722f
 
     static inline uint8_t F_TO_SRGB_U8( float val )
     {
@@ -704,12 +710,12 @@ namespace cvt {
         uint32_t __tmp, __tmp2;
         __tmp = ( ( src2 >> 8) & 0xff00ff ) - ( ( src1 >> 8 ) & 0xff00ff );
         __tmp *= alpha;
-//		__tmp += 0x800080;
+//      __tmp += 0x800080;
         __tmp += src1 & 0xff00ff00;
         __tmp &= 0xff00ff00;
         __tmp2 = ( src2 & 0xff00ff ) - ( src1 & 0xff00ff );
         __tmp2 *= alpha;
-//		__tmp2 += 0x800080;
+//      __tmp2 += 0x800080;
         __tmp2 = __tmp2  >> 8;
         __tmp2 += src1 & 0xff00ff;
         __tmp2 &= 0xff00ff;
@@ -717,17 +723,17 @@ namespace cvt {
     }
 
 
-	static inline uint8_t _addsU8( uint8_t a, uint8_t b )
-	{
-		uint16_t c = a + b;
-		return ( c | ( 0x100 - ( c >> 8 ) ) ) & 0xff;
-	}
+    static inline uint8_t _addsU8( uint8_t a, uint8_t b )
+    {
+        uint16_t c = a + b;
+        return ( c | ( 0x100 - ( c >> 8 ) ) ) & 0xff;
+    }
 
-	static inline uint8_t _subsU8( uint8_t a, uint8_t b )
-	{
-		uint16_t c = a - b;
-		return ( c & ~( 0x100 - ( c >> 15 ) ) ) & 0xff;
-	}
+    static inline uint8_t _subsU8( uint8_t a, uint8_t b )
+    {
+        uint16_t c = a - b;
+        return ( c & ~( 0x100 - ( c >> 15 ) ) ) & 0xff;
+    }
 
     static inline int32_t _floor( float v )
     {
@@ -836,6 +842,19 @@ namespace cvt {
         }
     }
 
+    void SIMD::SetValueS16( int16_t* dst, const int16_t value, const size_t n ) const
+    {
+        // if possible fill with the corresponding 32-bit value
+        uint32_t v = ( ( ( uint16_t ) value ) << 16 ) | ( ( uint16_t ) value );
+        SetValueU32( ( uint32_t* ) dst, v, n >> 1 );
+
+        // if there is a single value at the end we also set it
+        if( n & 1 ) {
+            dst += n & ( ~ 0x01 );
+            *dst++ = value;
+        }
+    }
+
     void SIMD::SetValueU32( uint32_t* dst, const uint32_t value, const size_t n ) const
     {
         size_t i = n;
@@ -927,6 +946,20 @@ namespace cvt {
         i = n & 0x03;
         while( i-- )
             *dst++ = *src1++ / *src2++;
+    }
+
+    void SIMD::AddValueS16( int16_t* dst, const int16_t* src, const int16_t value, const size_t n ) const
+    {
+        size_t i = n >> 2;
+        while( i-- ) {
+            *dst++ = *src++ + value;
+            *dst++ = *src++ + value;
+            *dst++ = *src++ + value;
+            *dst++ = *src++ + value;
+        }
+        i = n & 0x03;
+        while( i-- )
+            *dst++ = *src++ + value;
     }
 
     void SIMD::AddValue1f( float* dst, float const* src, const float value, const size_t n ) const
@@ -1135,8 +1168,8 @@ namespace cvt {
 
 
     void SIMD::MulU8Value1f( float* dst, const uint8_t* src, float value, size_t n ) const
-	{
-		size_t i = n >> 2;
+    {
+        size_t i = n >> 2;
         while( i-- ) {
             *dst++ = *src++ * value;
             *dst++ = *src++ * value;
@@ -1146,7 +1179,7 @@ namespace cvt {
         i = n & 0x03;
         while( i-- )
             *dst++ = *src++ * value;
-	}
+    }
 
     void SIMD::BSwap16( uint16_t* dst, const uint16_t* src, size_t size ) const
     {
@@ -1229,6 +1262,82 @@ namespace cvt {
         return ssd;
     }
 
+
+    void SIMD::meanVariance( float& mean, float& variance, const float* src, const size_t n ) const
+    {
+        size_t i = n >> 2;
+
+        float sum = 0.0f;
+        float sum2 = 0.0f;
+        while( i-- ) {
+            sum  += *src;
+            sum2 += Math::sqr( *src++ );
+            sum  += *src;
+            sum2 += Math::sqr( *src++ );
+            sum  += *src;
+            sum2 += Math::sqr( *src++ );
+            sum  += *src;
+            sum2 += Math::sqr( *src++ );
+        }
+
+        i = n & 0x03;
+        while( i-- ) {
+            sum  += *src;
+            sum2 += Math::sqr( *src++ );
+        }
+
+        mean     = sum / ( float ) n;
+        variance = ( sum2 / ( float ) n ) - mean * mean;
+    }
+
+
+    float SIMD::medianBinApproximate( const float* src, const size_t n ) const
+    {
+        const size_t BINS = 1001;
+        float mean, variance, sigma;
+        uint32_t bins[ BINS ];
+        uint32_t bottomcount = 0;
+
+        // calculate mean, variance and standard deviation
+        meanVariance( mean, variance, src, n );
+        sigma = Math::sqrt( variance );
+
+        // reset the bins
+        SetValueU32( bins, 0, BINS );
+
+        // calculate the scalefactor and the left, right bin bounds
+        float scalefactor = ( ( ( float ) BINS ) - 1.0f ) / ( 4.0f * sigma );
+        float left  = mean - 2.0f * sigma;
+        float right = mean + 2.0f * sigma;
+
+        // calculate the histogram for the range between left and right
+        for( size_t i = 0; i < n; i++ ) {
+            if( src[ i ] < left ) {
+                bottomcount++;
+            } else if( src[ i ] < right ) {
+               ssize_t idx = ( ssize_t ) ( ( src[ i ] - left )  * scalefactor );
+               bins[ idx ]++;
+            }
+        }
+
+        uint32_t k1 = ( n / 2 );
+        uint32_t k2 = ( n / 2 ) + ( n & 1 );
+        uint32_t count = bottomcount;
+        for( size_t i = 0; i < BINS; i++ ) {
+            count += bins[ i ];
+            // we observed the median
+            if( count >= k1 ) {
+                int l = i;
+                while( count <= k2 ) {
+                    l++;
+                    count += bins[ l ];
+                }
+                return left + ( ( ( float ) i ) + ( ( float ) l ) + 1.0f ) / ( scalefactor * 2.0f );
+            }
+        }
+
+    }
+
     float SIMD::sumSqr( float const* src, const size_t n ) const
     {
         size_t i = n >> 2;
@@ -1296,29 +1405,29 @@ namespace cvt {
         float mean12 = 0.0f;
         float meanSqr1 = 0.0f;
         float meanSqr2 = 0.0f;
-        
+
         size_t i = n;
         while( i-- ) {
             float v1 = *src1++;
             float v2 = *src2++;
-            
+
             mean1 += v1;
             mean2 += v2;
             mean12 += v1 * v2;
             meanSqr1 += Math::sqr( v1 );
             meanSqr2 += Math::sqr( v2 );
         }
-        
+
         float nInv = 1.0f / (float) n;
         mean1 *= nInv;
         mean2 *= nInv;
         mean12 *= nInv;
         meanSqr1 *= nInv;
         meanSqr2 *= nInv;
-        
+
         float cov = mean12 - ( mean1 * mean2 );
         float var1var2 = ( meanSqr1 - Math::sqr( mean1 ) ) * ( meanSqr2 - Math::sqr( mean2 ) );
-        
+
         // Avoid division by zero
         if( var1var2 == 0.0f ) {
             var1var2 = Math::floatNext( 0.0f );
@@ -1389,607 +1498,607 @@ namespace cvt {
         }
     }
 
-	void SIMD::MinValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const
-	{
-		while( n-- ) {
-			*dst++ = *src1 < *src2 ? *src1 : *src2;
-			src1++;
-			src2++;
-		}
-	}
-
-	void SIMD::MinValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const
-	{
-		while( n-- ) {
-			*dst++ = *src1 < *src2 ? *src1 : *src2;
-			src1++;
-			src2++;
-		}
-	}
-
-	void SIMD::MinValue1f( float* dst, const float* src1, const float* src2, size_t n ) const
-	{
-		while( n-- ) {
-			*dst++ = *src1 < *src2 ? *src1 : *src2;
-			src1++;
-			src2++;
-		}
-	}
-
-	void SIMD::MaxValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const
-	{
-		while( n-- ) {
-			*dst++ = *src1 > *src2 ? *src1 : *src2;
-			src1++;
-			src2++;
-		}
-	}
-
-	void SIMD::MaxValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const
-	{
-		while( n-- ) {
-			*dst++ = *src1 > *src2 ? *src1 : *src2;
-			src1++;
-			src2++;
-		}
-	}
-
-	void SIMD::MaxValue1f( float* dst, const float* src1, const float* src2, size_t n ) const
-	{
-		while( n-- ) {
-			*dst++ = *src1 > *src2 ? *src1 : *src2;
-			src1++;
-			src2++;
-		}
-	}
-
-	void SIMD::MinValueVertU8( uint8_t* dst, const uint8_t** bufs, size_t numbufs, size_t n ) const
-	{
-		size_t i;
-
-		for( i = 0; i <= n - 4; i += 4  ) {
-			uint8_t min0, min1, min2, min3;
-			const uint8_t* sptr = bufs[ 0 ] + i;
-			min0 = sptr[ 0 ];
-			min1 = sptr[ 1 ];
-			min2 = sptr[ 2 ];
-			min3 = sptr[ 3 ];
-
-			for( size_t k = 1; k < numbufs; k++ ) {
-				sptr = bufs[ k ] + i;
-				min0 = min0 < sptr[ 0 ] ? min0 : sptr[ 0 ];
-				min1 = min1 < sptr[ 1 ] ? min1 : sptr[ 1 ];
-				min2 = min2 < sptr[ 2 ] ? min2 : sptr[ 2 ];
-				min3 = min3 < sptr[ 3 ] ? min3 : sptr[ 3 ];
-			}
-
-			*dst++ = min0;
-			*dst++ = min1;
-			*dst++ = min2;
-			*dst++ = min3;
-		}
-
-		for( ; i < n; i++ ) {
-			uint8_t min = *( bufs[ 0 ] + i );
-			for( size_t k = 1; k < numbufs; k++ ) {
-				min = min < *( bufs[ k ] + i ) ? min : *( bufs[ k ] + i );
-			}
-			*dst++ = min;
-		}
-	}
-
-	void SIMD::MinValueVertU16( uint16_t* dst, const uint16_t** bufs, size_t numbufs, size_t n ) const
-	{
-		size_t i;
-
-		for( i = 0; i <= n - 4; i += 4  ) {
-			uint16_t min0, min1, min2, min3;
-			const uint16_t* sptr = bufs[ 0 ] + i;
-			min0 = sptr[ 0 ];
-			min1 = sptr[ 1 ];
-			min2 = sptr[ 2 ];
-			min3 = sptr[ 3 ];
-
-			for( size_t k = 1; k < numbufs; k++ ) {
-				sptr = bufs[ k ] + i;
-				min0 = min0 < sptr[ 0 ] ? min0 : sptr[ 0 ];
-				min1 = min1 < sptr[ 1 ] ? min1 : sptr[ 1 ];
-				min2 = min2 < sptr[ 2 ] ? min2 : sptr[ 2 ];
-				min3 = min3 < sptr[ 3 ] ? min3 : sptr[ 3 ];
-			}
-
-			*dst++ = min0;
-			*dst++ = min1;
-			*dst++ = min2;
-			*dst++ = min3;
-		}
-
-		for( ; i < n; i++ ) {
-			uint16_t min = *( bufs[ 0 ] + i );
-			for( size_t k = 1; k < numbufs; k++ ) {
-				min = min < *( bufs[ k ] + i ) ? min : *( bufs[ k ] + i );
-			}
-			*dst++ = min;
-		}
-	}
-
-	void SIMD::MinValueVert1f( float* dst, const float** bufs, size_t numbufs, size_t n ) const
-	{
-		size_t i;
-
-		for( i = 0; i <= n - 4; i += 4  ) {
-			float min0, min1, min2, min3;
-			const float* sptr = bufs[ 0 ] + i;
-			min0 = sptr[ 0 ];
-			min1 = sptr[ 1 ];
-			min2 = sptr[ 2 ];
-			min3 = sptr[ 3 ];
-
-			for( size_t k = 1; k < numbufs; k++ ) {
-				sptr = bufs[ k ] + i;
-				min0 = min0 < sptr[ 0 ] ? min0 : sptr[ 0 ];
-				min1 = min1 < sptr[ 1 ] ? min1 : sptr[ 1 ];
-				min2 = min2 < sptr[ 2 ] ? min2 : sptr[ 2 ];
-				min3 = min3 < sptr[ 3 ] ? min3 : sptr[ 3 ];
-			}
-
-			*dst++ = min0;
-			*dst++ = min1;
-			*dst++ = min2;
-			*dst++ = min3;
-		}
-
-		for( ; i < n; i++ ) {
-			float min = *( bufs[ 0 ] + i );
-			for( size_t k = 1; k < numbufs; k++ ) {
-				min = min < *( bufs[ k ] + i ) ? min : *( bufs[ k ] + i );
-			}
-			*dst++ = min;
-		}
-	}
-
-	void SIMD::MaxValueVertU8( uint8_t* dst, const uint8_t** bufs, size_t numbufs, size_t n ) const
-	{
-		size_t i;
-
-		for( i = 0; i <= n - 4; i += 4  ) {
-			uint8_t max0, max1, max2, max3;
-			const uint8_t* sptr = bufs[ 0 ] + i;
-			max0 = sptr[ 0 ];
-			max1 = sptr[ 1 ];
-			max2 = sptr[ 2 ];
-			max3 = sptr[ 3 ];
-
-			for( size_t k = 1; k < numbufs; k++ ) {
-				sptr = bufs[ k ] + i;
-				max0 = max0 > sptr[ 0 ] ? max0 : sptr[ 0 ];
-				max1 = max1 > sptr[ 1 ] ? max1 : sptr[ 1 ];
-				max2 = max2 > sptr[ 2 ] ? max2 : sptr[ 2 ];
-				max3 = max3 > sptr[ 3 ] ? max3 : sptr[ 3 ];
-			}
-
-			*dst++ = max0;
-			*dst++ = max1;
-			*dst++ = max2;
-			*dst++ = max3;
-		}
-
-		for( ; i < n; i++ ) {
-			uint8_t max = *( bufs[ 0 ] + i );
-			for( size_t k = 1; k < numbufs; k++ ) {
-				max = max > *( bufs[ k ] + i ) ? max : *( bufs[ k ] + i );
-			}
-			*dst++ = max;
-		}
-	}
-
-	void SIMD::MaxValueVertU16( uint16_t* dst, const uint16_t** bufs, size_t numbufs, size_t n ) const
-	{
-		size_t i;
-
-		for( i = 0; i <= n - 4; i += 4  ) {
-			uint16_t max0, max1, max2, max3;
-			const uint16_t* sptr = bufs[ 0 ] + i;
-			max0 = sptr[ 0 ];
-			max1 = sptr[ 1 ];
-			max2 = sptr[ 2 ];
-			max3 = sptr[ 3 ];
-
-			for( size_t k = 1; k < numbufs; k++ ) {
-				sptr = bufs[ k ] + i;
-				max0 = max0 > sptr[ 0 ] ? max0 : sptr[ 0 ];
-				max1 = max1 > sptr[ 1 ] ? max1 : sptr[ 1 ];
-				max2 = max2 > sptr[ 2 ] ? max2 : sptr[ 2 ];
-				max3 = max3 > sptr[ 3 ] ? max3 : sptr[ 3 ];
-			}
-
-			*dst++ = max0;
-			*dst++ = max1;
-			*dst++ = max2;
-			*dst++ = max3;
-		}
-
-		for( ; i < n; i++ ) {
-			uint16_t max = *( bufs[ 0 ] + i );
-			for( size_t k = 1; k < numbufs; k++ ) {
-				max = max > *( bufs[ k ] + i ) ? max : *( bufs[ k ] + i );
-			}
-			*dst++ = max;
-		}
-	}
-
-	void SIMD::MaxValueVert1f( float* dst, const float** bufs, size_t numbufs, size_t n ) const
-	{
-		size_t i;
-
-		for( i = 0; i <= n - 4; i += 4  ) {
-			float max0, max1, max2, max3;
-			const float* sptr = bufs[ 0 ] + i;
-			max0 = sptr[ 0 ];
-			max1 = sptr[ 1 ];
-			max2 = sptr[ 2 ];
-			max3 = sptr[ 3 ];
-
-			for( size_t k = 1; k < numbufs; k++ ) {
-				sptr = bufs[ k ] + i;
-				max0 = max0 > sptr[ 0 ] ? max0 : sptr[ 0 ];
-				max1 = max1 > sptr[ 1 ] ? max1 : sptr[ 1 ];
-				max2 = max2 > sptr[ 2 ] ? max2 : sptr[ 2 ];
-				max3 = max3 > sptr[ 3 ] ? max3 : sptr[ 3 ];
-			}
-
-			*dst++ = max0;
-			*dst++ = max1;
-			*dst++ = max2;
-			*dst++ = max3;
-		}
-
-		for( ; i < n; i++ ) {
-			float max = *( bufs[ 0 ] + i );
-			for( size_t k = 1; k < numbufs; k++ ) {
-				max = max > *( bufs[ k ] + i ) ? max : *( bufs[ k ] + i );
-			}
-			*dst++ = max;
-		}
-	}
-
-
-
-	void SIMD::erodeSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const
-	{
-		size_t i = 0;
-		const size_t b2 = n - radius - 2;
-		const size_t step = radius * 2 + 1;
-		uint8_t min;
-
-		if( radius == 0 ) {
-			memcpy( dst, src, n * sizeof( uint8_t ) );
-			return;
-		}
-
-		/* border 1 */
-		/* find min in 0 to radius */
-		min = *src;
-		for( size_t s = 1; s <= radius; s++ )
-			min = min < *( src + s )? min:*(src + s );
-		*dst++ = min;
-
-		/* update min by including src + radius + i and update dst */
-		for( i = 1; i < radius; i++ ) {
-			min = min < *( src + radius + i ) ? min : *( src + radius + i );
-			*dst++ = min;
-		}
-
-		/* main part */
-		for(; i <= b2; i += 2 ) {
-			min = *( src + 1 );
-			for( size_t s = 2; s < step; s++ ) {
-				min = min < *( src + s ) ? min : *( src + s );
-			}
-			*dst++ = min < *src ? min : *src;
-			*dst++ = min < *( src + step ) ? min : *( src + step );
-			src += 2;
-		}
-
-		for( ; i < n - radius; i++ ) {
-			min = *src;
-			for( size_t s = 1; s < step; s++ ) {
-				min = min < *( src + s ) ? min : *( src + s );
-			}
-			*dst++ = min < *src ? min : *src;
-			src++;
-		}
-
-		/* border 2 */
-		size_t nend = n - i;
-		for( i = 0; i < nend; i++ ) {
-			min = *src;
-			for( size_t s = 1; s < step - i - 1; s++ )
-				min = min < *( src + s )? min:*(src + s );
-			*dst++ = min;
-			src++;
-		}
-	}
-
-	void SIMD::erodeSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const
-	{
-		size_t i = 0;
-		const size_t b2 = n - radius - 2;
-		const size_t step = radius * 2 + 1;
-		uint16_t min;
-
-		if( radius == 0 ) {
-			memcpy( dst, src, n * sizeof( uint16_t ) );
-			return;
-		}
-
-		/* border 1 */
-		/* find min in 0 to radius */
-		min = *src;
-		for( size_t s = 1; s <= radius; s++ )
-			min = min < *( src + s )? min:*(src + s );
-		*dst++ = min;
-
-		/* update min by including src + radius + i and update dst */
-		for( i = 1; i < radius; i++ ) {
-			min = min < *( src + radius + i ) ? min : *( src + radius + i );
-			*dst++ = min;
-		}
-
-		/* main part */
-		for(; i <= b2; i += 2 ) {
-			min = *( src + 1 );
-			for( size_t s = 2; s < step; s++ ) {
-				min = min < *( src + s ) ? min : *( src + s );
-			}
-			*dst++ = min < *src ? min : *src;
-			*dst++ = min < *( src + step ) ? min : *( src + step );
-			src += 2;
-		}
-
-		for( ; i < n - radius; i++ ) {
-			min = *src;
-			for( size_t s = 1; s < step; s++ ) {
-				min = min < *( src + s ) ? min : *( src + s );
-			}
-			*dst++ = min < *src ? min : *src;
-			src++;
-		}
-
-		/* border 2 */
-		size_t nend = n - i;
-		for( i = 0; i < nend; i++ ) {
-			min = *src;
-			for( size_t s = 1; s < step - i - 1; s++ )
-				min = min < *( src + s )? min:*(src + s );
-			*dst++ = min;
-			src++;
-		}
-	}
-
-	void SIMD::erodeSpan1f( float* dst, const float* src, size_t n, size_t radius ) const
-	{
-		size_t i = 0;
-		const size_t b2 = n - radius - 2;
-		const size_t step = radius * 2 + 1;
-		float min;
-
-		if( radius == 0 ) {
-			memcpy( dst, src, n * sizeof( float ) );
-			return;
-		}
-
-		/* border 1 */
-		/* find min in 0 to radius */
-		min = *src;
-		for( size_t s = 1; s <= radius; s++ )
-			min = min < *( src + s )? min:*(src + s );
-		*dst++ = min;
-
-		/* update min by including src + radius + i and update dst */
-		for( i = 1; i < radius; i++ ) {
-			min = min < *( src + radius + i ) ? min : *( src + radius + i );
-			*dst++ = min;
-		}
-
-		/* main part */
-		for(; i <= b2; i += 2 ) {
-			min = *( src + 1 );
-			for( size_t s = 2; s < step; s++ ) {
-				min = min < *( src + s ) ? min : *( src + s );
-			}
-			*dst++ = min < *src ? min : *src;
-			*dst++ = min < *( src + step ) ? min : *( src + step );
-			src += 2;
-		}
-
-		for( ; i < n - radius; i++ ) {
-			min = *src;
-			for( size_t s = 1; s < step; s++ ) {
-				min = min < *( src + s ) ? min : *( src + s );
-			}
-			*dst++ = min < *src ? min : *src;
-			src++;
-		}
-
-		/* border 2 */
-		size_t nend = n - i;
-		for( i = 0; i < nend; i++ ) {
-			min = *src;
-			for( size_t s = 1; s < step - i - 1; s++ )
-				min = min < *( src + s )? min:*(src + s );
-			*dst++ = min;
-			src++;
-		}
-	}
-
-	void SIMD::dilateSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const
-	{
-		size_t i = 0;
-		const size_t b2 = n - radius - 2;
-		const size_t step = radius * 2 + 1;
-		uint8_t max;
-
-		if( radius == 0 ) {
-			memcpy( dst, src, n * sizeof( uint8_t ) );
-			return;
-		}
-
-		/* border 1 */
-		/* find max in 0 to radius */
-		max = *src;
-		for( size_t s = 1; s <= radius; s++ )
-			max = max > *( src + s )? max:*(src + s );
-		*dst++ = max;
-
-		/* update max by including src + radius + i and update dst */
-		for( i = 1; i < radius; i++ ) {
-			max = max > *( src + radius + i ) ? max : *( src + radius + i );
-			*dst++ = max;
-		}
-
-		/* main part */
-		for(; i <= b2; i += 2 ) {
-			max = *( src + 1 );
-			for( size_t s = 2; s < step; s++ ) {
-				max = max > *( src + s ) ? max : *( src + s );
-			}
-			*dst++ = max > *src ? max : *src;
-			*dst++ = max > *( src + step ) ? max : *( src + step );
-			src += 2;
-		}
-
-		for( ; i < n - radius; i++ ) {
-			max = *src;
-			for( size_t s = 1; s < step; s++ ) {
-				max = max > *( src + s ) ? max : *( src + s );
-			}
-			*dst++ = max > *src ? max : *src;
-			src++;
-		}
-
-		/* border 2 */
-		size_t nend = n - i;
-		for( i = 0; i < nend; i++ ) {
-			max = *src;
-			for( size_t s = 1; s < step - i - 1; s++ )
-				max = max > *( src + s )? max:*(src + s );
-			*dst++ = max;
-			src++;
-		}
-	}
-
-	void SIMD::dilateSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const
-	{
-		size_t i = 0;
-		const size_t b2 = n - radius - 2;
-		const size_t step = radius * 2 + 1;
-		uint16_t max;
-
-		if( radius == 0 ) {
-			memcpy( dst, src, n * sizeof( uint16_t ) );
-			return;
-		}
-
-		/* border 1 */
-		/* find max in 0 to radius */
-		max = *src;
-		for( size_t s = 1; s <= radius; s++ )
-			max = max > *( src + s )? max:*(src + s );
-		*dst++ = max;
-
-		/* update max by including src + radius + i and update dst */
-		for( i = 1; i < radius; i++ ) {
-			max = max > *( src + radius + i ) ? max : *( src + radius + i );
-			*dst++ = max;
-		}
-
-		/* main part */
-		for(; i <= b2; i += 2 ) {
-			max = *( src + 1 );
-			for( size_t s = 2; s < step; s++ ) {
-				max = max > *( src + s ) ? max : *( src + s );
-			}
-			*dst++ = max > *src ? max : *src;
-			*dst++ = max > *( src + step ) ? max : *( src + step );
-			src += 2;
-		}
-
-		for( ; i < n - radius; i++ ) {
-			max = *src;
-			for( size_t s = 1; s < step; s++ ) {
-				max = max > *( src + s ) ? max : *( src + s );
-			}
-			*dst++ = max > *src ? max : *src;
-			src++;
-		}
-
-		/* border 2 */
-		size_t nend = n - i;
-		for( i = 0; i < nend; i++ ) {
-			max = *src;
-			for( size_t s = 1; s < step - i - 1; s++ )
-				max = max > *( src + s )? max:*(src + s );
-			*dst++ = max;
-			src++;
-		}
-	}
-
-	void SIMD::dilateSpan1f( float* dst, const float* src, size_t n, size_t radius ) const
-	{
-		size_t i = 0;
-		const size_t b2 = n - radius - 2;
-		const size_t step = radius * 2 + 1;
-		float max;
-
-		if( radius == 0 ) {
-			memcpy( dst, src, n * sizeof( float ) );
-			return;
-		}
-
-		/* border 1 */
-		/* find max in 0 to radius */
-		max = *src;
-		for( size_t s = 1; s <= radius; s++ )
-			max = max > *( src + s )? max:*(src + s );
-		*dst++ = max;
-
-		/* update max by including src + radius + i and update dst */
-		for( i = 1; i < radius; i++ ) {
-			max = max > *( src + radius + i ) ? max : *( src + radius + i );
-			*dst++ = max;
-		}
-
-		/* main part */
-		for(; i <= b2; i += 2 ) {
-			max = *( src + 1 );
-			for( size_t s = 2; s < step; s++ ) {
-				max = max > *( src + s ) ? max : *( src + s );
-			}
-			*dst++ = max > *src ? max : *src;
-			*dst++ = max > *( src + step ) ? max : *( src + step );
-			src += 2;
-		}
-
-		for( ; i < n - radius; i++ ) {
-			max = *src;
-			for( size_t s = 1; s < step; s++ ) {
-				max = max > *( src + s ) ? max : *( src + s );
-			}
-			*dst++ = max > *src ? max : *src;
-			src++;
-		}
-
-		/* border 2 */
-		size_t nend = n - i;
-		for( i = 0; i < nend; i++ ) {
-			max = *src;
-			for( size_t s = 1; s < step - i - 1; s++ )
-				max = max > *( src + s )? max:*(src + s );
-			*dst++ = max;
-			src++;
-		}
-	}
+    void SIMD::MinValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const
+    {
+        while( n-- ) {
+            *dst++ = *src1 < *src2 ? *src1 : *src2;
+            src1++;
+            src2++;
+        }
+    }
+
+    void SIMD::MinValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const
+    {
+        while( n-- ) {
+            *dst++ = *src1 < *src2 ? *src1 : *src2;
+            src1++;
+            src2++;
+        }
+    }
+
+    void SIMD::MinValue1f( float* dst, const float* src1, const float* src2, size_t n ) const
+    {
+        while( n-- ) {
+            *dst++ = *src1 < *src2 ? *src1 : *src2;
+            src1++;
+            src2++;
+        }
+    }
+
+    void SIMD::MaxValueU8( uint8_t* dst, const uint8_t* src1, const uint8_t* src2, size_t n ) const
+    {
+        while( n-- ) {
+            *dst++ = *src1 > *src2 ? *src1 : *src2;
+            src1++;
+            src2++;
+        }
+    }
+
+    void SIMD::MaxValueU16( uint16_t* dst, const uint16_t* src1, const uint16_t* src2, size_t n ) const
+    {
+        while( n-- ) {
+            *dst++ = *src1 > *src2 ? *src1 : *src2;
+            src1++;
+            src2++;
+        }
+    }
+
+    void SIMD::MaxValue1f( float* dst, const float* src1, const float* src2, size_t n ) const
+    {
+        while( n-- ) {
+            *dst++ = *src1 > *src2 ? *src1 : *src2;
+            src1++;
+            src2++;
+        }
+    }
+
+    void SIMD::MinValueVertU8( uint8_t* dst, const uint8_t** bufs, size_t numbufs, size_t n ) const
+    {
+        size_t i;
+
+        for( i = 0; i <= n - 4; i += 4  ) {
+            uint8_t min0, min1, min2, min3;
+            const uint8_t* sptr = bufs[ 0 ] + i;
+            min0 = sptr[ 0 ];
+            min1 = sptr[ 1 ];
+            min2 = sptr[ 2 ];
+            min3 = sptr[ 3 ];
+
+            for( size_t k = 1; k < numbufs; k++ ) {
+                sptr = bufs[ k ] + i;
+                min0 = min0 < sptr[ 0 ] ? min0 : sptr[ 0 ];
+                min1 = min1 < sptr[ 1 ] ? min1 : sptr[ 1 ];
+                min2 = min2 < sptr[ 2 ] ? min2 : sptr[ 2 ];
+                min3 = min3 < sptr[ 3 ] ? min3 : sptr[ 3 ];
+            }
+
+            *dst++ = min0;
+            *dst++ = min1;
+            *dst++ = min2;
+            *dst++ = min3;
+        }
+
+        for( ; i < n; i++ ) {
+            uint8_t min = *( bufs[ 0 ] + i );
+            for( size_t k = 1; k < numbufs; k++ ) {
+                min = min < *( bufs[ k ] + i ) ? min : *( bufs[ k ] + i );
+            }
+            *dst++ = min;
+        }
+    }
+
+    void SIMD::MinValueVertU16( uint16_t* dst, const uint16_t** bufs, size_t numbufs, size_t n ) const
+    {
+        size_t i;
+
+        for( i = 0; i <= n - 4; i += 4  ) {
+            uint16_t min0, min1, min2, min3;
+            const uint16_t* sptr = bufs[ 0 ] + i;
+            min0 = sptr[ 0 ];
+            min1 = sptr[ 1 ];
+            min2 = sptr[ 2 ];
+            min3 = sptr[ 3 ];
+
+            for( size_t k = 1; k < numbufs; k++ ) {
+                sptr = bufs[ k ] + i;
+                min0 = min0 < sptr[ 0 ] ? min0 : sptr[ 0 ];
+                min1 = min1 < sptr[ 1 ] ? min1 : sptr[ 1 ];
+                min2 = min2 < sptr[ 2 ] ? min2 : sptr[ 2 ];
+                min3 = min3 < sptr[ 3 ] ? min3 : sptr[ 3 ];
+            }
+
+            *dst++ = min0;
+            *dst++ = min1;
+            *dst++ = min2;
+            *dst++ = min3;
+        }
+
+        for( ; i < n; i++ ) {
+            uint16_t min = *( bufs[ 0 ] + i );
+            for( size_t k = 1; k < numbufs; k++ ) {
+                min = min < *( bufs[ k ] + i ) ? min : *( bufs[ k ] + i );
+            }
+            *dst++ = min;
+        }
+    }
+
+    void SIMD::MinValueVert1f( float* dst, const float** bufs, size_t numbufs, size_t n ) const
+    {
+        size_t i;
+
+        for( i = 0; i <= n - 4; i += 4  ) {
+            float min0, min1, min2, min3;
+            const float* sptr = bufs[ 0 ] + i;
+            min0 = sptr[ 0 ];
+            min1 = sptr[ 1 ];
+            min2 = sptr[ 2 ];
+            min3 = sptr[ 3 ];
+
+            for( size_t k = 1; k < numbufs; k++ ) {
+                sptr = bufs[ k ] + i;
+                min0 = min0 < sptr[ 0 ] ? min0 : sptr[ 0 ];
+                min1 = min1 < sptr[ 1 ] ? min1 : sptr[ 1 ];
+                min2 = min2 < sptr[ 2 ] ? min2 : sptr[ 2 ];
+                min3 = min3 < sptr[ 3 ] ? min3 : sptr[ 3 ];
+            }
+
+            *dst++ = min0;
+            *dst++ = min1;
+            *dst++ = min2;
+            *dst++ = min3;
+        }
+
+        for( ; i < n; i++ ) {
+            float min = *( bufs[ 0 ] + i );
+            for( size_t k = 1; k < numbufs; k++ ) {
+                min = min < *( bufs[ k ] + i ) ? min : *( bufs[ k ] + i );
+            }
+            *dst++ = min;
+        }
+    }
+
+    void SIMD::MaxValueVertU8( uint8_t* dst, const uint8_t** bufs, size_t numbufs, size_t n ) const
+    {
+        size_t i;
+
+        for( i = 0; i <= n - 4; i += 4  ) {
+            uint8_t max0, max1, max2, max3;
+            const uint8_t* sptr = bufs[ 0 ] + i;
+            max0 = sptr[ 0 ];
+            max1 = sptr[ 1 ];
+            max2 = sptr[ 2 ];
+            max3 = sptr[ 3 ];
+
+            for( size_t k = 1; k < numbufs; k++ ) {
+                sptr = bufs[ k ] + i;
+                max0 = max0 > sptr[ 0 ] ? max0 : sptr[ 0 ];
+                max1 = max1 > sptr[ 1 ] ? max1 : sptr[ 1 ];
+                max2 = max2 > sptr[ 2 ] ? max2 : sptr[ 2 ];
+                max3 = max3 > sptr[ 3 ] ? max3 : sptr[ 3 ];
+            }
+
+            *dst++ = max0;
+            *dst++ = max1;
+            *dst++ = max2;
+            *dst++ = max3;
+        }
+
+        for( ; i < n; i++ ) {
+            uint8_t max = *( bufs[ 0 ] + i );
+            for( size_t k = 1; k < numbufs; k++ ) {
+                max = max > *( bufs[ k ] + i ) ? max : *( bufs[ k ] + i );
+            }
+            *dst++ = max;
+        }
+    }
+
+    void SIMD::MaxValueVertU16( uint16_t* dst, const uint16_t** bufs, size_t numbufs, size_t n ) const
+    {
+        size_t i;
+
+        for( i = 0; i <= n - 4; i += 4  ) {
+            uint16_t max0, max1, max2, max3;
+            const uint16_t* sptr = bufs[ 0 ] + i;
+            max0 = sptr[ 0 ];
+            max1 = sptr[ 1 ];
+            max2 = sptr[ 2 ];
+            max3 = sptr[ 3 ];
+
+            for( size_t k = 1; k < numbufs; k++ ) {
+                sptr = bufs[ k ] + i;
+                max0 = max0 > sptr[ 0 ] ? max0 : sptr[ 0 ];
+                max1 = max1 > sptr[ 1 ] ? max1 : sptr[ 1 ];
+                max2 = max2 > sptr[ 2 ] ? max2 : sptr[ 2 ];
+                max3 = max3 > sptr[ 3 ] ? max3 : sptr[ 3 ];
+            }
+
+            *dst++ = max0;
+            *dst++ = max1;
+            *dst++ = max2;
+            *dst++ = max3;
+        }
+
+        for( ; i < n; i++ ) {
+            uint16_t max = *( bufs[ 0 ] + i );
+            for( size_t k = 1; k < numbufs; k++ ) {
+                max = max > *( bufs[ k ] + i ) ? max : *( bufs[ k ] + i );
+            }
+            *dst++ = max;
+        }
+    }
+
+    void SIMD::MaxValueVert1f( float* dst, const float** bufs, size_t numbufs, size_t n ) const
+    {
+        size_t i;
+
+        for( i = 0; i <= n - 4; i += 4  ) {
+            float max0, max1, max2, max3;
+            const float* sptr = bufs[ 0 ] + i;
+            max0 = sptr[ 0 ];
+            max1 = sptr[ 1 ];
+            max2 = sptr[ 2 ];
+            max3 = sptr[ 3 ];
+
+            for( size_t k = 1; k < numbufs; k++ ) {
+                sptr = bufs[ k ] + i;
+                max0 = max0 > sptr[ 0 ] ? max0 : sptr[ 0 ];
+                max1 = max1 > sptr[ 1 ] ? max1 : sptr[ 1 ];
+                max2 = max2 > sptr[ 2 ] ? max2 : sptr[ 2 ];
+                max3 = max3 > sptr[ 3 ] ? max3 : sptr[ 3 ];
+            }
+
+            *dst++ = max0;
+            *dst++ = max1;
+            *dst++ = max2;
+            *dst++ = max3;
+        }
+
+        for( ; i < n; i++ ) {
+            float max = *( bufs[ 0 ] + i );
+            for( size_t k = 1; k < numbufs; k++ ) {
+                max = max > *( bufs[ k ] + i ) ? max : *( bufs[ k ] + i );
+            }
+            *dst++ = max;
+        }
+    }
+
+
+
+    void SIMD::erodeSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const
+    {
+        size_t i = 0;
+        const size_t b2 = n - radius - 2;
+        const size_t step = radius * 2 + 1;
+        uint8_t min;
+
+        if( radius == 0 ) {
+            memcpy( dst, src, n * sizeof( uint8_t ) );
+            return;
+        }
+
+        /* border 1 */
+        /* find min in 0 to radius */
+        min = *src;
+        for( size_t s = 1; s <= radius; s++ )
+            min = min < *( src + s )? min:*(src + s );
+        *dst++ = min;
+
+        /* update min by including src + radius + i and update dst */
+        for( i = 1; i < radius; i++ ) {
+            min = min < *( src + radius + i ) ? min : *( src + radius + i );
+            *dst++ = min;
+        }
+
+        /* main part */
+        for(; i <= b2; i += 2 ) {
+            min = *( src + 1 );
+            for( size_t s = 2; s < step; s++ ) {
+                min = min < *( src + s ) ? min : *( src + s );
+            }
+            *dst++ = min < *src ? min : *src;
+            *dst++ = min < *( src + step ) ? min : *( src + step );
+            src += 2;
+        }
+
+        for( ; i < n - radius; i++ ) {
+            min = *src;
+            for( size_t s = 1; s < step; s++ ) {
+                min = min < *( src + s ) ? min : *( src + s );
+            }
+            *dst++ = min < *src ? min : *src;
+            src++;
+        }
+
+        /* border 2 */
+        size_t nend = n - i;
+        for( i = 0; i < nend; i++ ) {
+            min = *src;
+            for( size_t s = 1; s < step - i - 1; s++ )
+                min = min < *( src + s )? min:*(src + s );
+            *dst++ = min;
+            src++;
+        }
+    }
+
+    void SIMD::erodeSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const
+    {
+        size_t i = 0;
+        const size_t b2 = n - radius - 2;
+        const size_t step = radius * 2 + 1;
+        uint16_t min;
+
+        if( radius == 0 ) {
+            memcpy( dst, src, n * sizeof( uint16_t ) );
+            return;
+        }
+
+        /* border 1 */
+        /* find min in 0 to radius */
+        min = *src;
+        for( size_t s = 1; s <= radius; s++ )
+            min = min < *( src + s )? min:*(src + s );
+        *dst++ = min;
+
+        /* update min by including src + radius + i and update dst */
+        for( i = 1; i < radius; i++ ) {
+            min = min < *( src + radius + i ) ? min : *( src + radius + i );
+            *dst++ = min;
+        }
+
+        /* main part */
+        for(; i <= b2; i += 2 ) {
+            min = *( src + 1 );
+            for( size_t s = 2; s < step; s++ ) {
+                min = min < *( src + s ) ? min : *( src + s );
+            }
+            *dst++ = min < *src ? min : *src;
+            *dst++ = min < *( src + step ) ? min : *( src + step );
+            src += 2;
+        }
+
+        for( ; i < n - radius; i++ ) {
+            min = *src;
+            for( size_t s = 1; s < step; s++ ) {
+                min = min < *( src + s ) ? min : *( src + s );
+            }
+            *dst++ = min < *src ? min : *src;
+            src++;
+        }
+
+        /* border 2 */
+        size_t nend = n - i;
+        for( i = 0; i < nend; i++ ) {
+            min = *src;
+            for( size_t s = 1; s < step - i - 1; s++ )
+                min = min < *( src + s )? min:*(src + s );
+            *dst++ = min;
+            src++;
+        }
+    }
+
+    void SIMD::erodeSpan1f( float* dst, const float* src, size_t n, size_t radius ) const
+    {
+        size_t i = 0;
+        const size_t b2 = n - radius - 2;
+        const size_t step = radius * 2 + 1;
+        float min;
+
+        if( radius == 0 ) {
+            memcpy( dst, src, n * sizeof( float ) );
+            return;
+        }
+
+        /* border 1 */
+        /* find min in 0 to radius */
+        min = *src;
+        for( size_t s = 1; s <= radius; s++ )
+            min = min < *( src + s )? min:*(src + s );
+        *dst++ = min;
+
+        /* update min by including src + radius + i and update dst */
+        for( i = 1; i < radius; i++ ) {
+            min = min < *( src + radius + i ) ? min : *( src + radius + i );
+            *dst++ = min;
+        }
+
+        /* main part */
+        for(; i <= b2; i += 2 ) {
+            min = *( src + 1 );
+            for( size_t s = 2; s < step; s++ ) {
+                min = min < *( src + s ) ? min : *( src + s );
+            }
+            *dst++ = min < *src ? min : *src;
+            *dst++ = min < *( src + step ) ? min : *( src + step );
+            src += 2;
+        }
+
+        for( ; i < n - radius; i++ ) {
+            min = *src;
+            for( size_t s = 1; s < step; s++ ) {
+                min = min < *( src + s ) ? min : *( src + s );
+            }
+            *dst++ = min < *src ? min : *src;
+            src++;
+        }
+
+        /* border 2 */
+        size_t nend = n - i;
+        for( i = 0; i < nend; i++ ) {
+            min = *src;
+            for( size_t s = 1; s < step - i - 1; s++ )
+                min = min < *( src + s )? min:*(src + s );
+            *dst++ = min;
+            src++;
+        }
+    }
+
+    void SIMD::dilateSpanU8( uint8_t* dst, const uint8_t* src, size_t n, size_t radius ) const
+    {
+        size_t i = 0;
+        const size_t b2 = n - radius - 2;
+        const size_t step = radius * 2 + 1;
+        uint8_t max;
+
+        if( radius == 0 ) {
+            memcpy( dst, src, n * sizeof( uint8_t ) );
+            return;
+        }
+
+        /* border 1 */
+        /* find max in 0 to radius */
+        max = *src;
+        for( size_t s = 1; s <= radius; s++ )
+            max = max > *( src + s )? max:*(src + s );
+        *dst++ = max;
+
+        /* update max by including src + radius + i and update dst */
+        for( i = 1; i < radius; i++ ) {
+            max = max > *( src + radius + i ) ? max : *( src + radius + i );
+            *dst++ = max;
+        }
+
+        /* main part */
+        for(; i <= b2; i += 2 ) {
+            max = *( src + 1 );
+            for( size_t s = 2; s < step; s++ ) {
+                max = max > *( src + s ) ? max : *( src + s );
+            }
+            *dst++ = max > *src ? max : *src;
+            *dst++ = max > *( src + step ) ? max : *( src + step );
+            src += 2;
+        }
+
+        for( ; i < n - radius; i++ ) {
+            max = *src;
+            for( size_t s = 1; s < step; s++ ) {
+                max = max > *( src + s ) ? max : *( src + s );
+            }
+            *dst++ = max > *src ? max : *src;
+            src++;
+        }
+
+        /* border 2 */
+        size_t nend = n - i;
+        for( i = 0; i < nend; i++ ) {
+            max = *src;
+            for( size_t s = 1; s < step - i - 1; s++ )
+                max = max > *( src + s )? max:*(src + s );
+            *dst++ = max;
+            src++;
+        }
+    }
+
+    void SIMD::dilateSpanU16( uint16_t* dst, const uint16_t* src, size_t n, size_t radius ) const
+    {
+        size_t i = 0;
+        const size_t b2 = n - radius - 2;
+        const size_t step = radius * 2 + 1;
+        uint16_t max;
+
+        if( radius == 0 ) {
+            memcpy( dst, src, n * sizeof( uint16_t ) );
+            return;
+        }
+
+        /* border 1 */
+        /* find max in 0 to radius */
+        max = *src;
+        for( size_t s = 1; s <= radius; s++ )
+            max = max > *( src + s )? max:*(src + s );
+        *dst++ = max;
+
+        /* update max by including src + radius + i and update dst */
+        for( i = 1; i < radius; i++ ) {
+            max = max > *( src + radius + i ) ? max : *( src + radius + i );
+            *dst++ = max;
+        }
+
+        /* main part */
+        for(; i <= b2; i += 2 ) {
+            max = *( src + 1 );
+            for( size_t s = 2; s < step; s++ ) {
+                max = max > *( src + s ) ? max : *( src + s );
+            }
+            *dst++ = max > *src ? max : *src;
+            *dst++ = max > *( src + step ) ? max : *( src + step );
+            src += 2;
+        }
+
+        for( ; i < n - radius; i++ ) {
+            max = *src;
+            for( size_t s = 1; s < step; s++ ) {
+                max = max > *( src + s ) ? max : *( src + s );
+            }
+            *dst++ = max > *src ? max : *src;
+            src++;
+        }
+
+        /* border 2 */
+        size_t nend = n - i;
+        for( i = 0; i < nend; i++ ) {
+            max = *src;
+            for( size_t s = 1; s < step - i - 1; s++ )
+                max = max > *( src + s )? max:*(src + s );
+            *dst++ = max;
+            src++;
+        }
+    }
+
+    void SIMD::dilateSpan1f( float* dst, const float* src, size_t n, size_t radius ) const
+    {
+        size_t i = 0;
+        const size_t b2 = n - radius - 2;
+        const size_t step = radius * 2 + 1;
+        float max;
+
+        if( radius == 0 ) {
+            memcpy( dst, src, n * sizeof( float ) );
+            return;
+        }
+
+        /* border 1 */
+        /* find max in 0 to radius */
+        max = *src;
+        for( size_t s = 1; s <= radius; s++ )
+            max = max > *( src + s )? max:*(src + s );
+        *dst++ = max;
+
+        /* update max by including src + radius + i and update dst */
+        for( i = 1; i < radius; i++ ) {
+            max = max > *( src + radius + i ) ? max : *( src + radius + i );
+            *dst++ = max;
+        }
+
+        /* main part */
+        for(; i <= b2; i += 2 ) {
+            max = *( src + 1 );
+            for( size_t s = 2; s < step; s++ ) {
+                max = max > *( src + s ) ? max : *( src + s );
+            }
+            *dst++ = max > *src ? max : *src;
+            *dst++ = max > *( src + step ) ? max : *( src + step );
+            src += 2;
+        }
+
+        for( ; i < n - radius; i++ ) {
+            max = *src;
+            for( size_t s = 1; s < step; s++ ) {
+                max = max > *( src + s ) ? max : *( src + s );
+            }
+            *dst++ = max > *src ? max : *src;
+            src++;
+        }
+
+        /* border 2 */
+        size_t nend = n - i;
+        for( i = 0; i < nend; i++ ) {
+            max = *src;
+            for( size_t s = 1; s < step - i - 1; s++ )
+                max = max > *( src + s )? max:*(src + s );
+            *dst++ = max;
+            src++;
+        }
+    }
 
     void SIMD::Conv_f_to_u8( uint8_t* dst, float const* src, const size_t n ) const
     {
@@ -2331,9 +2440,9 @@ namespace cvt {
 
         while( i-- ) {
             tmp = *src++;
-            v = 0.2126f * SRGB_U8_TO_F( tmp & 0xff );
-            v += 0.7152f * SRGB_U8_TO_F( ( tmp >> 8 ) & 0xff );
-            v += 0.0722f * SRGB_U8_TO_F( ( tmp >> 16 ) & 0xff );
+            v = RED_LUMA_BT709f * SRGB_U8_TO_F( tmp & 0xff );
+            v += GREEN_LUMA_BT709f * SRGB_U8_TO_F( ( tmp >> 8 ) & 0xff );
+            v += BLUE_LUMA_BT709f * SRGB_U8_TO_F( ( tmp >> 16 ) & 0xff );
             *dst++ = v;
         }
     }
@@ -2344,9 +2453,9 @@ namespace cvt {
         float v;
 
         while( i-- ) {
-            v = 0.0722f * *src++;
-            v += 0.7152f * *src++;
-            v += 0.2126f * *src++;
+            v = BLUE_LUMA_BT709f * *src++;
+            v += GREEN_LUMA_BT709f * *src++;
+            v += RED_LUMA_BT709f * *src++;
             src++;
             *dst++ = v;
         }
@@ -2358,9 +2467,9 @@ namespace cvt {
         float v;
 
         while( i-- ) {
-            v = 0.2126f * *src++;
-            v += 0.7152f * *src++;
-            v += 0.0722f * *src++;
+            v = RED_LUMA_BT709f * *src++;
+            v += GREEN_LUMA_BT709f * *src++;
+            v += BLUE_LUMA_BT709f * *src++;
             src++;
             *dst++ = v;
         }
@@ -2375,9 +2484,9 @@ namespace cvt {
 
         while( i-- ) {
             tmp = *src++;
-            v = 0.2126f * SRGB_U8_TO_F( (tmp >> 16 ) & 0xff );
-            v += 0.7152f * SRGB_U8_TO_F( ( tmp >> 8 ) & 0xff );
-            v += 0.0722f * SRGB_U8_TO_F( ( tmp ) & 0xff );
+            v = RED_LUMA_BT709f * SRGB_U8_TO_F( (tmp >> 16 ) & 0xff );
+            v += GREEN_LUMA_BT709f * SRGB_U8_TO_F( ( tmp >> 8 ) & 0xff );
+            v += BLUE_LUMA_BT709f * SRGB_U8_TO_F( ( tmp ) & 0xff );
             *dst++ = v;
         }
     }
@@ -2413,6 +2522,37 @@ namespace cvt {
             *dst++ = ( uint8_t ) ( v >> 10 );
         }
     }
+
+    void SIMD::Conv_RGBAu16_to_GRAYf( float* dst, uint16_t const* src, const size_t n ) const
+    {
+        size_t i = n;
+        const float scale = 1.0f / ( float ) 0xffff;
+        float v;
+
+        while( i-- ) {
+            v =  RED_LUMA_BT709f * scale * ( float ) ( *src++ );
+            v += GREEN_LUMA_BT709f * scale * ( float ) ( *src++ );
+            v += BLUE_LUMA_BT709f * scale * ( float ) ( *src++ );
+            src++;
+            *dst++ = v;
+        }
+    }
+
+    void SIMD::Conv_BGRAu16_to_GRAYf( float* dst, uint16_t const* src, const size_t n ) const
+    {
+        size_t i = n;
+        const float scale = 1.0f / ( float ) 0xffff;
+        float v;
+
+        while( i-- ) {
+            v =  BLUE_LUMA_BT709f * scale * ( float ) ( *src++ );
+            v += GREEN_LUMA_BT709f * scale * ( float ) ( *src++ );
+            v += RED_LUMA_BT709f * scale * ( float ) ( *src++ );
+            src++;
+            *dst++ = v;
+        }
+    }
+
 
     void SIMD::Conv_YUYVu8_to_RGBAu8( uint8_t* _dst, const uint8_t* _src, const size_t n ) const
     {
@@ -2860,96 +3000,105 @@ namespace cvt {
         }
     }
 
-	void SIMD::BoxFilterHorizontal_1u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const
-	{
-		size_t x;
-		float accum;
-		float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
+    void SIMD::MinMax_1f( float& min, float& max, const float* src, size_t n ) const
+    {
+        while( n-- ) {
+            if( *src < min ) min = *src;
+            if( *src > max ) max = *src;
+            src++;
+        }
+    }
 
-		accum = *src * ( float ) ( radius + 1 );
-		for( x = 1; x <= radius; x++ )
-			accum += ( float ) src[ x ];
+    void SIMD::BoxFilterHorizontal_1u8_to_f( float* dst, const uint8_t* src, size_t radius, size_t width ) const
+    {
+        size_t x;
+        float accum;
+        float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
 
-		*dst++ = accum * invmean;
+        accum = *src * ( float ) ( radius + 1 );
+        for( x = 1; x <= radius; x++ )
+            accum += ( float ) src[ x ];
 
-		for( x = 1; x <= radius; x++ ) {
-			accum -= ( float ) src[ 0 ];
-			accum += ( float ) src[ x + radius ];
-			*dst++ = accum * invmean;
-		}
+        *dst++ = accum * invmean;
 
-		for( ; x < width - radius; x++ ) {
-			accum -= ( float ) src[ x - radius - 1 ];
-			accum += ( float ) src[ x + radius ];
-			*dst++ = accum * invmean;
-		}
+        for( x = 1; x <= radius; x++ ) {
+            accum -= ( float ) src[ 0 ];
+            accum += ( float ) src[ x + radius ];
+            *dst++ = accum * invmean;
+        }
 
-		for( ; x < width; x++ ) {
-			accum -= ( float ) src[ x - radius - 1 ];
-			accum += ( float ) src[ width - 1 ];
-			*dst++ = accum * invmean;
-		}
-	}
+        for( ; x < width - radius; x++ ) {
+            accum -= ( float ) src[ x - radius - 1 ];
+            accum += ( float ) src[ x + radius ];
+            *dst++ = accum * invmean;
+        }
 
-	void SIMD::BoxFilterHorizontal_1f( float* dst, const float* src, size_t radius, size_t width ) const
-	{
-		size_t x;
-		float accum;
-		float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
+        for( ; x < width; x++ ) {
+            accum -= ( float ) src[ x - radius - 1 ];
+            accum += ( float ) src[ width - 1 ];
+            *dst++ = accum * invmean;
+        }
+    }
 
-		accum = *src * ( float ) ( radius + 1 );
-		for( x = 1; x <= radius; x++ )
-			accum += src[ x ];
+    void SIMD::BoxFilterHorizontal_1f( float* dst, const float* src, size_t radius, size_t width ) const
+    {
+        size_t x;
+        float accum;
+        float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
 
-		*dst++ = accum * invmean;
+        accum = *src * ( float ) ( radius + 1 );
+        for( x = 1; x <= radius; x++ )
+            accum += src[ x ];
 
-		for( x = 1; x <= radius; x++ ) {
-			accum -= src[ 0 ];
-			accum += src[ x + radius ];
-			*dst++ = accum * invmean;
-		}
+        *dst++ = accum * invmean;
 
-		for( ; x < width - radius; x++ ) {
-			accum -= src[ x - radius - 1 ];
-			accum += src[ x + radius ];
-			*dst++ = accum * invmean;
-		}
+        for( x = 1; x <= radius; x++ ) {
+            accum -= src[ 0 ];
+            accum += src[ x + radius ];
+            *dst++ = accum * invmean;
+        }
 
-		for( ; x < width; x++ ) {
-			accum -= src[ x - radius - 1 ];
-			accum += src[ width - 1 ];
-			*dst++ = accum * invmean;
-		}
-	}
+        for( ; x < width - radius; x++ ) {
+            accum -= src[ x - radius - 1 ];
+            accum += src[ x + radius ];
+            *dst++ = accum * invmean;
+        }
+
+        for( ; x < width; x++ ) {
+            accum -= src[ x - radius - 1 ];
+            accum += src[ width - 1 ];
+            *dst++ = accum * invmean;
+        }
+    }
 
 
-	void SIMD::BoxFilterVert_f_to_u8( uint8_t* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const
-	{
-		size_t x;
+    void SIMD::BoxFilterVert_f_to_u8( uint8_t* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const
+    {
+        size_t x;
 
-		float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
+        float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
 
-		for( x = 0; x < width; x++ ) {
-			float tmp;
-			tmp = *accum + *add++ - *sub++;
-			*accum++ = tmp;
+        for( x = 0; x < width; x++ ) {
+            float tmp;
+            tmp = *accum + *add++ - *sub++;
+            *accum++ = tmp;
             *dst++ = ( uint8_t ) Math::clamp( tmp * invmean, 0.0f, 255.0f );
-		}
-	}
+        }
+    }
 
-	void SIMD::BoxFilterVert_f( float* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const
-	{
-		size_t x;
+    void SIMD::BoxFilterVert_f( float* dst, float* accum, const float* add, const float* sub, size_t radius, size_t width ) const
+    {
+        size_t x;
 
-		float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
+        float invmean = 1.0f / ( float ) ( 2 * radius + 1 );
 
-		for( x = 0; x < width; x++ ) {
-			float tmp;
-			tmp = *accum + *add++ - *sub++;
-			*accum++ = tmp;
+        for( x = 0; x < width; x++ ) {
+            float tmp;
+            tmp = *accum + *add++ - *sub++;
+            *accum++ = tmp;
             *dst++ = tmp * invmean;
-		}
-	}
+        }
+    }
 
 
     void SIMD::AddVert_f( float* dst, const float** bufs, size_t numw, size_t width ) const
@@ -3015,915 +3164,915 @@ namespace cvt {
 
 
 
-	void SIMD::ConvolveHorizontal1f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
-	{
-		if( wn == 1 ) {
-			MulValue1f( dst, src, *weights, width );
-			return;
-		}
+    void SIMD::ConvolveHorizontal1f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
+    {
+        if( wn == 1 ) {
+            MulValue1f( dst, src, *weights, width );
+            return;
+        }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = x - b1 + k;
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = x - b1 + k;
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontal2f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
-	{
-		if( wn == 1 ) {
-			MulValue1f( dst, src, *weights, width * 2 );
-			return;
-		}
+    void SIMD::ConvolveHorizontal2f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
+    {
+        if( wn == 1 ) {
+            MulValue1f( dst, src, *weights, width * 2 );
+            return;
+        }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = ( x - b1 + k ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
-            *dst++ = tmp[ 0 ];
-            *dst++ = tmp[ 1 ];
-        }
-        for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
-            *dst++ = tmp[ 0 ];
-            *dst++ = tmp[ 1 ];
-        }
-	}
-
-	void SIMD::ConvolveHorizontal4f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
-	{
-		if( wn == 1 ) {
-			MulValue1f( dst, src, *weights, width * 4 );
-			return;
-		}
-
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-
-        for( x = 0; x < b1; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
-            *dst++ = tmp[ 0 ];
-            *dst++ = tmp[ 1 ];
-            *dst++ = tmp[ 2 ];
-            *dst++ = tmp[ 3 ];
-        }
-        for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = ( x - b1 + k ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
-            *dst++ = tmp[ 0 ];
-            *dst++ = tmp[ 1 ];
-            *dst++ = tmp[ 2 ];
-            *dst++ = tmp[ 3 ];
-        }
-        for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
-            *dst++ = tmp[ 0 ];
-            *dst++ = tmp[ 1 ];
-            *dst++ = tmp[ 2 ];
-            *dst++ = tmp[ 3 ];
-        }
-	}
-
-	void SIMD::ConvolveHorizontalSym1f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
-	{
-		if( wn == 1 ) {
-			MulValue1f( dst, src, *weights, width );
-			return;
-		}
-
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const float* wsym = weights + b1;
-
-
-        for( x = 0; x < b1; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
-            *dst++ = tmp;
-        }
-        for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp;
-			tmp = wsym[ 0 ] * src[ x ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k );
-				ssize_t pos2 = ( x + k );
-				tmp += wsym[ k ] * ( src[ pos1 ] + src[ pos2 ] );
-			}
-            *dst++ = tmp;
-        }
-        for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
-            *dst++ = tmp;
-        }
-	}
-
-	void SIMD::ConvolveHorizontalSym2f( float* dst, const float* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
-	{
-		if( wn == 1 ) {
-			MulValue1f( dst, src, *weights, width * 2 );
-			return;
-		}
-
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const float* wsym = weights + b1;
-
-        for( x = 0; x < b1; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
-            *dst++ = tmp[ 0 ];
-            *dst++ = tmp[ 1 ];
-        }
-        for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 2 ];
-			ssize_t pos = ( x ) << 1;
-			tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
-			tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k ) << 1;
-				ssize_t pos2 = ( x + k ) << 1;
-				tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
-				tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = ( x - b1 + k ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontalSym4f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
-	{
-		if( wn == 1 ) {
-			MulValue1f( dst, src, *weights, width * 4 );
-			return;
-		}
+    void SIMD::ConvolveHorizontal4f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
+    {
+        if( wn == 1 ) {
+            MulValue1f( dst, src, *weights, width * 4 );
+            return;
+        }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const float* wsym = weights + b1;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 4 ];
-			ssize_t pos = ( x ) << 2;
-			tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
-			tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
-			tmp[ 2 ] = wsym[ 0 ] * src[ pos + 2 ];
-			tmp[ 3 ] = wsym[ 0 ] * src[ pos + 3 ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k ) << 2;
-				ssize_t pos2 = ( x + k ) << 2;
-				tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
-				tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
-				tmp[ 2 ] += wsym[ k ] * ( src[ pos1 + 2 ] + src[ pos2 + 2 ] );
-				tmp[ 3 ] += wsym[ k ] * ( src[ pos1 + 3 ] + src[ pos2 + 3 ] );
-			}
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = ( x - b1 + k ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
-		for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+        for( ; x < ( ssize_t ) width; x++ ) {
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontal1u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontalSym1f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
+    {
+        if( wn == 1 ) {
+            MulValue1f( dst, src, *weights, width );
+            return;
+        }
+
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const float* wsym = weights + b1;
+
+
+        for( x = 0; x < b1; x++ ) {
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
+            *dst++ = tmp;
+        }
+        for( ; x < ( ssize_t ) width - b2; x++ ) {
+            float tmp;
+            tmp = wsym[ 0 ] * src[ x ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k );
+                ssize_t pos2 = ( x + k );
+                tmp += wsym[ k ] * ( src[ pos1 ] + src[ pos2 ] );
+            }
+            *dst++ = tmp;
+        }
+        for( ; x < ( ssize_t ) width; x++ ) {
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
+            *dst++ = tmp;
+        }
+    }
+
+    void SIMD::ConvolveHorizontalSym2f( float* dst, const float* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
+    {
+        if( wn == 1 ) {
+            MulValue1f( dst, src, *weights, width * 2 );
+            return;
+        }
+
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const float* wsym = weights + b1;
+
+        for( x = 0; x < b1; x++ ) {
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
+            *dst++ = tmp[ 0 ];
+            *dst++ = tmp[ 1 ];
+        }
+        for( ; x < ( ssize_t ) width - b2; x++ ) {
+            float tmp[ 2 ];
+            ssize_t pos = ( x ) << 1;
+            tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
+            tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k ) << 1;
+                ssize_t pos2 = ( x + k ) << 1;
+                tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
+                tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
+            }
+            *dst++ = tmp[ 0 ];
+            *dst++ = tmp[ 1 ];
+        }
+        for( ; x < ( ssize_t ) width; x++ ) {
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
+            *dst++ = tmp[ 0 ];
+            *dst++ = tmp[ 1 ];
+        }
+    }
+
+    void SIMD::ConvolveHorizontalSym4f( float* dst, const float* src, const size_t width, float const* weights, const size_t wn, IBorderType btype ) const
+    {
+        if( wn == 1 ) {
+            MulValue1f( dst, src, *weights, width * 4 );
+            return;
+        }
+
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const float* wsym = weights + b1;
+
+        for( x = 0; x < b1; x++ ) {
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
+            *dst++ = tmp[ 0 ];
+            *dst++ = tmp[ 1 ];
+            *dst++ = tmp[ 2 ];
+            *dst++ = tmp[ 3 ];
+        }
+        for( ; x < ( ssize_t ) width - b2; x++ ) {
+            float tmp[ 4 ];
+            ssize_t pos = ( x ) << 2;
+            tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
+            tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
+            tmp[ 2 ] = wsym[ 0 ] * src[ pos + 2 ];
+            tmp[ 3 ] = wsym[ 0 ] * src[ pos + 3 ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k ) << 2;
+                ssize_t pos2 = ( x + k ) << 2;
+                tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
+                tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
+                tmp[ 2 ] += wsym[ k ] * ( src[ pos1 + 2 ] + src[ pos2 + 2 ] );
+                tmp[ 3 ] += wsym[ k ] * ( src[ pos1 + 3 ] + src[ pos2 + 3 ] );
+            }
+            *dst++ = tmp[ 0 ];
+            *dst++ = tmp[ 1 ];
+            *dst++ = tmp[ 2 ];
+            *dst++ = tmp[ 3 ];
+        }
+        for( ; x < ( ssize_t ) width; x++ ) {
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
+            *dst++ = tmp[ 0 ];
+            *dst++ = tmp[ 1 ];
+            *dst++ = tmp[ 2 ];
+            *dst++ = tmp[ 3 ];
+        }
+    }
+
+    void SIMD::ConvolveHorizontal1u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1fx( dst, src, *weights, width );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			Fixed tmp;
-			tmp.native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            Fixed tmp;
+            tmp.native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			Fixed tmp;
-			tmp.native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = x - b1 + k;
-				tmp += weights[ k ] * src[ pos ];
-			}
+            Fixed tmp;
+            tmp.native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = x - b1 + k;
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			Fixed tmp;
-			tmp.native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            Fixed tmp;
+            tmp.native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontal2u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontal2u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1fx( dst, src, *weights, width * 2 );
             return;
         }
 
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			Fixed tmp[ 2 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            Fixed tmp[ 2 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
-		for( ; x < ( ssize_t ) width - b2; x++ ) {
+        for( ; x < ( ssize_t ) width - b2; x++ ) {
 
-			Fixed tmp[ 2 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = ( x - b1 + k ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
-			*dst++ = tmp[ 0 ];
-			*dst++ = tmp[ 1 ];
-		}
+            Fixed tmp[ 2 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = ( x - b1 + k ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
+            *dst++ = tmp[ 0 ];
+            *dst++ = tmp[ 1 ];
+        }
         for( ; x < ( ssize_t ) width; x++ ) {
-			Fixed tmp[ 2 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            Fixed tmp[ 2 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontal4u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontal4u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1fx( dst, src, *weights, width * 4 );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			Fixed tmp[ 4 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			tmp[ 2 ].native() = 0;
-			tmp[ 3 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            Fixed tmp[ 4 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            tmp[ 2 ].native() = 0;
+            tmp[ 3 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			Fixed tmp[ 4 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			tmp[ 2 ].native() = 0;
-			tmp[ 3 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = ( x - b1 + k ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            Fixed tmp[ 4 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            tmp[ 2 ].native() = 0;
+            tmp[ 3 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = ( x - b1 + k ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			Fixed tmp[ 4 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			tmp[ 2 ].native() = 0;
-			tmp[ 3 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            Fixed tmp[ 4 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            tmp[ 2 ].native() = 0;
+            tmp[ 3 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
 
-	}
+    }
 
-	void SIMD::ConvolveHorizontalSym1u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontalSym1u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1fx( dst, src, *weights, width );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const Fixed* wsym = weights + b1;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const Fixed* wsym = weights + b1;
 
         for( x = 0; x < b1; x++ ) {
-			Fixed tmp;
-			tmp.native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            Fixed tmp;
+            tmp.native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			Fixed tmp = wsym[ 0 ] * src[ x ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = x + k;
-				ssize_t pos2 = x - k;
-				Fixed val;
-				val.native() = ( ( int32_t ) src[ pos1 ] + ( int32_t ) src[ pos2 ] ) << 16;
-				tmp += wsym[ k ] * val;
-			}
+            Fixed tmp = wsym[ 0 ] * src[ x ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = x + k;
+                ssize_t pos2 = x - k;
+                Fixed val;
+                val.native() = ( ( int32_t ) src[ pos1 ] + ( int32_t ) src[ pos2 ] ) << 16;
+                tmp += wsym[ k ] * val;
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			Fixed tmp;
-			tmp.native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            Fixed tmp;
+            tmp.native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontalSym2u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontalSym2u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1fx( dst, src, *weights, width * 2 );
             return;
         }
 
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const Fixed* wsym = weights + b1;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const Fixed* wsym = weights + b1;
 
         for( x = 0; x < b1; x++ ) {
-			Fixed tmp[ 2 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            Fixed tmp[ 2 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			Fixed tmp[ 2 ];
-			size_t pos = x << 1;
-			tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
-			tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k ) << 1;
-				ssize_t pos2 = ( x + k ) << 1;
-				Fixed val[ 2 ];
-				val[ 0 ].native() = ( ( int32_t ) src[ pos1 + 0 ] + ( int32_t ) src[ pos2 + 0 ] ) << 16;
-				val[ 1 ].native() = ( ( int32_t ) src[ pos1 + 1 ] + ( int32_t ) src[ pos2 + 1 ] ) << 16;
-				tmp[ 0 ] += wsym[ k ] * val[ 0 ];
-				tmp[ 1 ] += wsym[ k ] * val[ 1 ];
-			}
+            Fixed tmp[ 2 ];
+            size_t pos = x << 1;
+            tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
+            tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k ) << 1;
+                ssize_t pos2 = ( x + k ) << 1;
+                Fixed val[ 2 ];
+                val[ 0 ].native() = ( ( int32_t ) src[ pos1 + 0 ] + ( int32_t ) src[ pos2 + 0 ] ) << 16;
+                val[ 1 ].native() = ( ( int32_t ) src[ pos1 + 1 ] + ( int32_t ) src[ pos2 + 1 ] ) << 16;
+                tmp[ 0 ] += wsym[ k ] * val[ 0 ];
+                tmp[ 1 ] += wsym[ k ] * val[ 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
 
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			Fixed tmp[ 2 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            Fixed tmp[ 2 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontalSym4u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontalSym4u8_to_fx( Fixed* dst, const uint8_t* src, const size_t width, const Fixed* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1fx( dst, src, *weights, width * 4 );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const Fixed* wsym = weights + b1;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const Fixed* wsym = weights + b1;
 
         for( x = 0; x < b1; x++ ) {
-			Fixed tmp[ 4 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			tmp[ 2 ].native() = 0;
-			tmp[ 3 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            Fixed tmp[ 4 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            tmp[ 2 ].native() = 0;
+            tmp[ 3 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			Fixed tmp[ 4 ];
-			ssize_t pos = ( x ) << 2;
-			tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
-			tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
-			tmp[ 2 ] = wsym[ 0 ] * src[ pos + 2 ];
-			tmp[ 3 ] = wsym[ 0 ] * src[ pos + 3 ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k ) << 2;
-				ssize_t pos2 = ( x + k ) << 2;
-				Fixed val[ 4 ];
-				val[ 0 ].native() = ( ( int32_t ) src[ pos1 + 0 ] + ( int32_t ) src[ pos2 + 0 ] ) << 16;
-				val[ 1 ].native() = ( ( int32_t ) src[ pos1 + 1 ] + ( int32_t ) src[ pos2 + 1 ] ) << 16;
-				val[ 2 ].native() = ( ( int32_t ) src[ pos1 + 2 ] + ( int32_t ) src[ pos2 + 2 ] ) << 16;
-				val[ 3 ].native() = ( ( int32_t ) src[ pos1 + 3 ] + ( int32_t ) src[ pos2 + 3 ] ) << 16;
-				tmp[ 0 ] += wsym[ k ] * val[ 0 ];
-				tmp[ 1 ] += wsym[ k ] * val[ 1 ];
-				tmp[ 2 ] += wsym[ k ] * val[ 2 ];
-				tmp[ 3 ] += wsym[ k ] * val[ 3 ];
-			}
+            Fixed tmp[ 4 ];
+            ssize_t pos = ( x ) << 2;
+            tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
+            tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
+            tmp[ 2 ] = wsym[ 0 ] * src[ pos + 2 ];
+            tmp[ 3 ] = wsym[ 0 ] * src[ pos + 3 ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k ) << 2;
+                ssize_t pos2 = ( x + k ) << 2;
+                Fixed val[ 4 ];
+                val[ 0 ].native() = ( ( int32_t ) src[ pos1 + 0 ] + ( int32_t ) src[ pos2 + 0 ] ) << 16;
+                val[ 1 ].native() = ( ( int32_t ) src[ pos1 + 1 ] + ( int32_t ) src[ pos2 + 1 ] ) << 16;
+                val[ 2 ].native() = ( ( int32_t ) src[ pos1 + 2 ] + ( int32_t ) src[ pos2 + 2 ] ) << 16;
+                val[ 3 ].native() = ( ( int32_t ) src[ pos1 + 3 ] + ( int32_t ) src[ pos2 + 3 ] ) << 16;
+                tmp[ 0 ] += wsym[ k ] * val[ 0 ];
+                tmp[ 1 ] += wsym[ k ] * val[ 1 ];
+                tmp[ 2 ] += wsym[ k ] * val[ 2 ];
+                tmp[ 3 ] += wsym[ k ] * val[ 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			Fixed tmp[ 4 ];
-			tmp[ 0 ].native() = 0;
-			tmp[ 1 ].native() = 0;
-			tmp[ 2 ].native() = 0;
-			tmp[ 3 ].native() = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            Fixed tmp[ 4 ];
+            tmp[ 0 ].native() = 0;
+            tmp[ 1 ].native() = 0;
+            tmp[ 2 ].native() = 0;
+            tmp[ 3 ].native() = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
 
-	}
+    }
 
-	void SIMD::ConvolveHorizontal1u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontal1u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1f( dst, src, *weights, width );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = x - b1 + k;
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = x - b1 + k;
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontal2u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontal2u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1f( dst, src, *weights, width * 2 );
             return;
         }
 
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = ( x - b1 + k ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = ( x - b1 + k ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontal4u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontal4u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1f( dst, src, *weights, width * 4 );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = ( x - b1 + k ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = ( x - b1 + k ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
 
-	}
+    }
 
-	void SIMD::ConvolveHorizontalSym1u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontalSym1u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1f( dst, src, *weights, width );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const float* wsym = weights + b1;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const float* wsym = weights + b1;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp;
-			tmp = wsym[ 0 ] * src[ x ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k );
-				ssize_t pos2 = ( x + k );
-				tmp += wsym[ k ] * ( src[ pos1 ] + src[ pos2 ] );
-			}
+            float tmp;
+            tmp = wsym[ 0 ] * src[ x ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k );
+                ssize_t pos2 = ( x + k );
+                tmp += wsym[ k ] * ( src[ pos1 ] + src[ pos2 ] );
+            }
             *dst++ = tmp;
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp = 0;
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
-				tmp += weights[ k ] * src[ pos ];
-			}
+            float tmp = 0;
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype );
+                tmp += weights[ k ] * src[ pos ];
+            }
             *dst++ = tmp;
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontalSym2u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontalSym2u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1f( dst, src, *weights, width * 2 );
             return;
         }
 
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const float* wsym = weights + b1;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const float* wsym = weights + b1;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 2 ];
-			ssize_t pos = ( x ) << 1;
-			tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
-			tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k ) << 1;
-				ssize_t pos2 = ( x + k ) << 1;
-				tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
-				tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
-			}
+            float tmp[ 2 ];
+            ssize_t pos = ( x ) << 1;
+            tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
+            tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k ) << 1;
+                ssize_t pos2 = ( x + k ) << 1;
+                tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
+                tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 2 ] = { 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-			}
+            float tmp[ 2 ] = { 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 1;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
         }
-	}
+    }
 
-	void SIMD::ConvolveHorizontalSym4u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
-	{
+    void SIMD::ConvolveHorizontalSym4u8_to_f( float* dst, const uint8_t* src, const size_t width, const float* weights, const size_t wn, IBorderType btype ) const
+    {
         if( wn == 1 ) {
             MulU8Value1f( dst, src, *weights, width * 4 );
             return;
         }
 
-		ssize_t b1 = ( wn >> 1 );
-		ssize_t b2 = wn - b1 - 1;
-		ssize_t x;
-		const float* wsym = weights + b1;
+        ssize_t b1 = ( wn >> 1 );
+        ssize_t b2 = wn - b1 - 1;
+        ssize_t x;
+        const float* wsym = weights + b1;
 
         for( x = 0; x < b1; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width - b2; x++ ) {
-			float tmp[ 4 ];
-			ssize_t pos = ( x ) << 2;
-			tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
-			tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
-			tmp[ 2 ] = wsym[ 0 ] * src[ pos + 2 ];
-			tmp[ 3 ] = wsym[ 0 ] * src[ pos + 3 ];
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				ssize_t pos1 = ( x - k ) << 2;
-				ssize_t pos2 = ( x + k ) << 2;
-				tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
-				tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
-				tmp[ 2 ] += wsym[ k ] * ( src[ pos1 + 2 ] + src[ pos2 + 2 ] );
-				tmp[ 3 ] += wsym[ k ] * ( src[ pos1 + 3 ] + src[ pos2 + 3 ] );
-			}
+            float tmp[ 4 ];
+            ssize_t pos = ( x ) << 2;
+            tmp[ 0 ] = wsym[ 0 ] * src[ pos + 0 ];
+            tmp[ 1 ] = wsym[ 0 ] * src[ pos + 1 ];
+            tmp[ 2 ] = wsym[ 0 ] * src[ pos + 2 ];
+            tmp[ 3 ] = wsym[ 0 ] * src[ pos + 3 ];
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                ssize_t pos1 = ( x - k ) << 2;
+                ssize_t pos2 = ( x + k ) << 2;
+                tmp[ 0 ] += wsym[ k ] * ( src[ pos1 + 0 ] + src[ pos2 + 0 ] );
+                tmp[ 1 ] += wsym[ k ] * ( src[ pos1 + 1 ] + src[ pos2 + 1 ] );
+                tmp[ 2 ] += wsym[ k ] * ( src[ pos1 + 2 ] + src[ pos2 + 2 ] );
+                tmp[ 3 ] += wsym[ k ] * ( src[ pos1 + 3 ] + src[ pos2 + 3 ] );
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
         for( ; x < ( ssize_t ) width; x++ ) {
-			float tmp[ 4 ] = { 0, 0, 0, 0 };
-			for( size_t k = 0; k < wn; k++ ) {
-				ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
-				tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
-				tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
-				tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
-				tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
-			}
+            float tmp[ 4 ] = { 0, 0, 0, 0 };
+            for( size_t k = 0; k < wn; k++ ) {
+                ssize_t pos = IBorder::value<ssize_t>( x - b1 + k, width, btype ) << 2;
+                tmp[ 0 ] += weights[ k ] * src[ pos + 0 ];
+                tmp[ 1 ] += weights[ k ] * src[ pos + 1 ];
+                tmp[ 2 ] += weights[ k ] * src[ pos + 2 ];
+                tmp[ 3 ] += weights[ k ] * src[ pos + 3 ];
+            }
             *dst++ = tmp[ 0 ];
             *dst++ = tmp[ 1 ];
             *dst++ = tmp[ 2 ];
             *dst++ = tmp[ 3 ];
         }
 
-	}
+    }
 
     void SIMD::ConvolveClampVert_fx_to_u8( uint8_t* dst, const Fixed** bufs, const Fixed* weights, size_t numw, size_t width ) const
     {
@@ -4096,32 +4245,32 @@ namespace cvt {
         }
     }
 
-	void SIMD::ConvolveClampVertSym_fx_to_u8( uint8_t* dst, const Fixed** bufs, const Fixed* weights, size_t numw, size_t width ) const
-	{
-		size_t x;
-		Fixed tmp;
+    void SIMD::ConvolveClampVertSym_fx_to_u8( uint8_t* dst, const Fixed** bufs, const Fixed* weights, size_t numw, size_t width ) const
+    {
+        size_t x;
+        Fixed tmp;
 
-		ssize_t b1 = ( numw >> 1 );
-		const Fixed* wsym = weights + b1;
+        ssize_t b1 = ( numw >> 1 );
+        const Fixed* wsym = weights + b1;
 
-		for( x = 0 ; x < width; x++ ) {
-			tmp = wsym[ 0 ] * bufs[ b1 ][ x ];
+        for( x = 0 ; x < width; x++ ) {
+            tmp = wsym[ 0 ] * bufs[ b1 ][ x ];
 
-			for( ssize_t k = 1; k <= b1; k++ ) {
-				tmp += wsym[ k ] * ( bufs[ b1 + k ][ x ] + bufs[ b1 - k ][ x ] );
-			}
+            for( ssize_t k = 1; k <= b1; k++ ) {
+                tmp += wsym[ k ] * ( bufs[ b1 + k ][ x ] + bufs[ b1 - k ][ x ] );
+            }
 
             *dst++ = ( uint8_t ) Math::clamp( tmp.round(), 0x0, 0xff );
-		}
-	}
+        }
+    }
 
     void SIMD::ConvolveClampVertSym_f( float* dst, const float** bufs, const float* weights, size_t numw, size_t width ) const
     {
         size_t x;
         float tmp;
 
-		ssize_t b1 = ( numw >> 1 );
-		const float* wsym = weights + b1;
+        ssize_t b1 = ( numw >> 1 );
+        const float* wsym = weights + b1;
 
         for( x = 0 ; x < width; x++ ) {
             tmp = wsym[ 0 ] * bufs[ b1 ][ x ];
@@ -4138,8 +4287,8 @@ namespace cvt {
         size_t x;
         float tmp;
 
-		ssize_t b1 = ( numw >> 1 );
-		const float* wsym = weights + b1;
+        ssize_t b1 = ( numw >> 1 );
+        const float* wsym = weights + b1;
 
         for( x = 0 ; x < width; x++ ) {
             tmp = wsym[ 0 ] * bufs[ b1 ][ x ];
@@ -4156,8 +4305,8 @@ namespace cvt {
         size_t x;
         float tmp;
 
-		ssize_t b1 = ( numw >> 1 );
-		const float* wsym = weights + b1;
+        ssize_t b1 = ( numw >> 1 );
+        const float* wsym = weights + b1;
 
         for( x = 0 ; x < width; x++ ) {
             tmp = wsym[ 0 ] * bufs[ b1 ][ x ];
@@ -4747,18 +4896,18 @@ namespace cvt {
 
     }
 
-	void SIMD::harrisScore1f( float* dst, const float* boxdx2, const float* boxdy2, const float* boxdxdy, float k, size_t width ) const
-	{
-		size_t x;
+    void SIMD::harrisScore1f( float* dst, const float* boxdx2, const float* boxdy2, const float* boxdxdy, float k, size_t width ) const
+    {
+        size_t x;
 
-		for( x = 0; x < width; x++ ) {
-			float a, b, c;
-			a = *boxdx2++;
-			b = *boxdy2++;
-			c = *boxdxdy++;
-			*dst++ = ( a * b - c * c ) - ( k * Math::sqr(a + b) );
-		}
-	}
+        for( x = 0; x < width; x++ ) {
+            float a, b, c;
+            a = *boxdx2++;
+            b = *boxdy2++;
+            c = *boxdxdy++;
+            *dst++ = ( a * b - c * c ) - ( k * Math::sqr(a + b) );
+        }
+    }
 
 
     float SIMD::harrisResponse1u8( const uint8_t* _src, size_t srcStride, size_t w, size_t h, const float k ) const
@@ -4828,8 +4977,8 @@ namespace cvt {
         float Ix = 0;
         float Iy = 0;
         float a = 0, b = 0, c = 0, n = 0;
-//		const float wght[ 9 ] = { 0.0048150f, 0.0287160f, 0.1028185f, 0.2210241f, 0.2852523f,
-//								  0.2210241f, 0.1028185f, 0.0287160f, 0.0048150f };
+//      const float wght[ 9 ] = { 0.0048150f, 0.0287160f, 0.1028185f, 0.2210241f, 0.2852523f,
+//                                0.2210241f, 0.1028185f, 0.0287160f, 0.0048150f };
 //  const float wght[ 15 ] =  { 0.000436407426038f,   0.002216259780359f,   0.008765477469243f,   0.026999571389574f,
 //   0.064768604754149f,   0.121003684000465f,   0.176059321357850f,   0.199501347644643f,
 //   0.176059321357850f,   0.121003684000465f,   0.064768604754149f,   0.026999571389574f,
@@ -4840,7 +4989,7 @@ namespace cvt {
    0.071606992455918f,   0.120027592615994f,   0.163635110039819f,   0.181443587970351f,
    0.163635110039819f,   0.120027592615994f,   0.071606992455918f,   0.034745575262543f,
    0.013712394984760f,   0.004401460998178f,   0.001149079657613f };
-//		const float wght[ 31 ] = {
+//      const float wght[ 31 ] = {
 //   0.000088157939303,   0.000218192995285,   0.000507313913423,   0.001108075461036,
 //   0.002273623221016,   0.004382523463181,   0.007935724797396,   0.013499122612070,
 //   0.021571536512413,   0.032382711724327,   0.045666943155140,   0.060498870269667,
@@ -4849,7 +4998,7 @@ namespace cvt {
 //   0.045666943155140,   0.032382711724327,   0.021571536512413,   0.013499122612070,
 //   0.007935724797396,   0.004382523463181,   0.002273623221016,   0.001108075461036,
 //   0.000507313913423,   0.000218192995285,   0.000088157939303,
-//		};
+//      };
         for( size_t y = 0, yend = 2 * ( w - 1 ) + 1; y < yend; y++ ) {
             const uint8_t* psrc = src;
             for( size_t x = 0, xend = 2 * ( h - 1 ) + 1; x < xend; x++ ) {
@@ -5351,17 +5500,17 @@ namespace cvt {
 
 
 #define BAYER_HQ_R_AT_G_EVEN( p1, p2, p3, p4, p5 ) ( ( ( ( HQPTR(p3,-1) + HQPTR(p3, 1) ) << 2 ) + ( HQPTR(p3,0) << 2 ) + HQPTR(p3,0) \
-													  - HQPTR(p2,-1) - HQPTR(p2,+1) - HQPTR(p4,-1) - HQPTR(p4,1) - HQPTR(p3,-2) - HQPTR(p3,+2) + \
-													( ( HQPTR(p1,0) + HQPTR(p5,0) ) >> 1 ) ) >> 3 )
+                                                      - HQPTR(p2,-1) - HQPTR(p2,+1) - HQPTR(p4,-1) - HQPTR(p4,1) - HQPTR(p3,-2) - HQPTR(p3,+2) + \
+                                                    ( ( HQPTR(p1,0) + HQPTR(p5,0) ) >> 1 ) ) >> 3 )
 
 #define BAYER_HQ_B_AT_G_EVEN( p1, p2, p3, p4, p5 ) ( ( ( ( HQPTR(p2,0) + HQPTR(p4, 0) ) << 2 ) + ( HQPTR(p3,0) << 2 ) + HQPTR(p3,0) \
-													  - HQPTR(p2,-1) - HQPTR(p2,+1) - HQPTR(p4,-1) - HQPTR(p4,1) - HQPTR(p1,0) - HQPTR(p5,0) + \
-													( ( HQPTR(p3,-2) + HQPTR(p3,+2) ) >> 1 ) ) >> 3 )
+                                                      - HQPTR(p2,-1) - HQPTR(p2,+1) - HQPTR(p4,-1) - HQPTR(p4,1) - HQPTR(p1,0) - HQPTR(p5,0) + \
+                                                    ( ( HQPTR(p3,-2) + HQPTR(p3,+2) ) >> 1 ) ) >> 3 )
 
 
 #define BAYER_HQ_B_AT_R_EVEN( p1, p2, p3, p4, p5 ) ( ( ( ( HQPTR(p2,-1) + HQPTR(p2, 1) + HQPTR(p4,-1) + HQPTR(p4,1) ) << 1 ) + ( ( HQPTR(p3,0) << 2 ) + ( HQPTR(p3,0) << 1 ) ) \
-													- ( HQPTR(p3,-2) + HQPTR(p3,+2) + HQPTR(p1,0) + HQPTR(p5,0) ) \
-													- ( ( HQPTR(p3,-2) + HQPTR(p3,+2) + HQPTR(p1,0) + HQPTR(p5,0) ) >> 1  ) ) >> 3 )
+                                                    - ( HQPTR(p3,-2) + HQPTR(p3,+2) + HQPTR(p1,0) + HQPTR(p5,0) ) \
+                                                    - ( ( HQPTR(p3,-2) + HQPTR(p3,+2) + HQPTR(p1,0) + HQPTR(p5,0) ) >> 1  ) ) >> 3 )
 
 #define BAYER_HQ_R_AT_G_ODD( p1, p2, p3, p4, p5 ) BAYER_HQ_B_AT_G_EVEN( p1, p2, p3, p4, p5 )
 
@@ -5369,165 +5518,165 @@ namespace cvt {
 
 #define BAYER_HQ_R_AT_B_ODD( p1, p2, p3, p4, p5 ) BAYER_HQ_B_AT_R_EVEN( p1, p2, p3, p4, p5 )
 
-	void SIMD::debayerhq_EVEN_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* _src1, const uint32_t* _src2, const uint32_t* _src3,
-											 const uint32_t* _src4, const uint32_t* _src5, size_t n ) const
-	{
-		uint32_t v;
-		const uint8_t* src1 = ( const uint8_t* ) _src1;
-		const uint8_t* src2 = ( const uint8_t* ) _src2;
-		const uint8_t* src3 = ( const uint8_t* ) _src3;
-		const uint8_t* src4 = ( const uint8_t* ) _src4;
-		const uint8_t* src5 = ( const uint8_t* ) _src5;
+    void SIMD::debayerhq_EVEN_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* _src1, const uint32_t* _src2, const uint32_t* _src3,
+                                             const uint32_t* _src4, const uint32_t* _src5, size_t n ) const
+    {
+        uint32_t v;
+        const uint8_t* src1 = ( const uint8_t* ) _src1;
+        const uint8_t* src2 = ( const uint8_t* ) _src2;
+        const uint8_t* src3 = ( const uint8_t* ) _src3;
+        const uint8_t* src4 = ( const uint8_t* ) _src4;
+        const uint8_t* src5 = ( const uint8_t* ) _src5;
 
-		v = 0xff000000;
-		v |= *src3; // RED
-		v |= BAYER_MIX4( HQPTR(src3,1), HQPTR(src3,1), HQPTR(src2,0), HQPTR(src4,0) ) << 8; // GREEN
-		v |= BAYER_MIX2( HQPTR(src2,1), HQPTR(src4,1) ) << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
+        v = 0xff000000;
+        v |= *src3; // RED
+        v |= BAYER_MIX4( HQPTR(src3,1), HQPTR(src3,1), HQPTR(src2,0), HQPTR(src4,0) ) << 8; // GREEN
+        v |= BAYER_MIX2( HQPTR(src2,1), HQPTR(src4,1) ) << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
 
-		v = 0xff000000;
-		v |= BAYER_MIX2( HQPTR(src3,1), HQPTR(src3,-1) ); // RED
-		v |= *src3 << 8; // GREEN
-		v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ) << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
+        v = 0xff000000;
+        v |= BAYER_MIX2( HQPTR(src3,1), HQPTR(src3,-1) ); // RED
+        v |= *src3 << 8; // GREEN
+        v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ) << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
 
-		size_t i = ( n - 4 ) >> 1;
-		while( i-- ) {
-			v = 0xff000000;
-			v |= *src3; // RED
-			v |= Math::clamp( BAYER_HQ_G_AT_R( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 8; // GREEN
-			v |= Math::clamp( BAYER_HQ_B_AT_R_EVEN( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 16; // BLUE
-			*dst++ = v;
-			src1++;
-			src2++;
-			src3++;
-			src4++;
-			src5++;
+        size_t i = ( n - 4 ) >> 1;
+        while( i-- ) {
+            v = 0xff000000;
+            v |= *src3; // RED
+            v |= Math::clamp( BAYER_HQ_G_AT_R( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 8; // GREEN
+            v |= Math::clamp( BAYER_HQ_B_AT_R_EVEN( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 16; // BLUE
+            *dst++ = v;
+            src1++;
+            src2++;
+            src3++;
+            src4++;
+            src5++;
 
-			v = 0xff000000;
-			v |= Math::clamp( BAYER_HQ_R_AT_G_EVEN( src1, src2, src3, src4, src5 ), 0x0, 0xff ); // RED
-			v |= ( *src3 ) << 8; // GREEN
-			v |= Math::clamp( BAYER_HQ_B_AT_G_EVEN( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 16; // BLUE
-			*dst++ = v;
-			src1++;
-			src2++;
-			src3++;
-			src4++;
-			src5++;
-		}
+            v = 0xff000000;
+            v |= Math::clamp( BAYER_HQ_R_AT_G_EVEN( src1, src2, src3, src4, src5 ), 0x0, 0xff ); // RED
+            v |= ( *src3 ) << 8; // GREEN
+            v |= Math::clamp( BAYER_HQ_B_AT_G_EVEN( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 16; // BLUE
+            *dst++ = v;
+            src1++;
+            src2++;
+            src3++;
+            src4++;
+            src5++;
+        }
 
-		v = 0xff000000;
-		v |= *src3; // RED
-		v |= BAYER_MIX4( HQPTR(src3,-1), HQPTR(src3,1), HQPTR(src2,0), HQPTR(src4,0) ) << 8; // GREEN
-		v |= BAYER_MIX4( HQPTR(src2,-1), HQPTR(src4,-1), HQPTR(src2,1), HQPTR(src4,1) ) << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
+        v = 0xff000000;
+        v |= *src3; // RED
+        v |= BAYER_MIX4( HQPTR(src3,-1), HQPTR(src3,1), HQPTR(src2,0), HQPTR(src4,0) ) << 8; // GREEN
+        v |= BAYER_MIX4( HQPTR(src2,-1), HQPTR(src4,-1), HQPTR(src2,1), HQPTR(src4,1) ) << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
 
-		v = 0xff000000;
-		v |= *( src3 - 1 ); // RED
-		v |= *src3 << 8; // GREEN
-		v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ) << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
-	}
+        v = 0xff000000;
+        v |= *( src3 - 1 ); // RED
+        v |= *src3 << 8; // GREEN
+        v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ) << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
+    }
 
-	void SIMD::debayerhq_ODD_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* _src1, const uint32_t* _src2, const uint32_t* _src3,
-											 const uint32_t* _src4, const uint32_t* _src5, size_t n ) const
-	{
-		uint32_t v;
-		const uint8_t* src1 = ( const uint8_t* ) _src1;
-		const uint8_t* src2 = ( const uint8_t* ) _src2;
-		const uint8_t* src3 = ( const uint8_t* ) _src3;
-		const uint8_t* src4 = ( const uint8_t* ) _src4;
-		const uint8_t* src5 = ( const uint8_t* ) _src5;
+    void SIMD::debayerhq_ODD_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* _src1, const uint32_t* _src2, const uint32_t* _src3,
+                                             const uint32_t* _src4, const uint32_t* _src5, size_t n ) const
+    {
+        uint32_t v;
+        const uint8_t* src1 = ( const uint8_t* ) _src1;
+        const uint8_t* src2 = ( const uint8_t* ) _src2;
+        const uint8_t* src3 = ( const uint8_t* ) _src3;
+        const uint8_t* src4 = ( const uint8_t* ) _src4;
+        const uint8_t* src5 = ( const uint8_t* ) _src5;
 
-		v = 0xff000000;
-		v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ); // RED
-		v |= *src3 << 8; // GREEN
-		v |= *(src3+1) << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
+        v = 0xff000000;
+        v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ); // RED
+        v |= *src3 << 8; // GREEN
+        v |= *(src3+1) << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
 
-		v = 0xff000000;
-		v |= BAYER_MIX4( HQPTR(src2,-1), HQPTR(src4,-1), HQPTR(src2,1), HQPTR(src4,1) ); // RED
-		v |= BAYER_MIX4( HQPTR(src2,0), HQPTR(src4,0), HQPTR(src3,-1), HQPTR(src3,1) ) << 8; // GREEN
-		v |= *src3 << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
+        v = 0xff000000;
+        v |= BAYER_MIX4( HQPTR(src2,-1), HQPTR(src4,-1), HQPTR(src2,1), HQPTR(src4,1) ); // RED
+        v |= BAYER_MIX4( HQPTR(src2,0), HQPTR(src4,0), HQPTR(src3,-1), HQPTR(src3,1) ) << 8; // GREEN
+        v |= *src3 << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
 
-		size_t i = ( n - 4 ) >> 1;
-		while( i-- ) {
-			v = 0xff000000;
-			v |= Math::clamp( BAYER_HQ_R_AT_G_ODD( src1, src2, src3, src4, src5 ), 0x0, 0xff ); // RED
-			v |= *src3 << 8; // GREEN
-			v |= Math::clamp( BAYER_HQ_B_AT_G_ODD( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 16; // BLUE
-			*dst++ = v;
-			src1++;
-			src2++;
-			src3++;
-			src4++;
-			src5++;
+        size_t i = ( n - 4 ) >> 1;
+        while( i-- ) {
+            v = 0xff000000;
+            v |= Math::clamp( BAYER_HQ_R_AT_G_ODD( src1, src2, src3, src4, src5 ), 0x0, 0xff ); // RED
+            v |= *src3 << 8; // GREEN
+            v |= Math::clamp( BAYER_HQ_B_AT_G_ODD( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 16; // BLUE
+            *dst++ = v;
+            src1++;
+            src2++;
+            src3++;
+            src4++;
+            src5++;
 
-			v = 0xff000000;
-			v |= Math::clamp( BAYER_HQ_R_AT_B_ODD( src1, src2, src3, src4, src5 ), 0x0, 0xff ); // RED
-			v |= Math::clamp( BAYER_HQ_G_AT_B( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 8; // GREEN
-			v |= *src3 << 16; // BLUE
-			*dst++ = v;
-			src1++;
-			src2++;
-			src3++;
-			src4++;
-			src5++;
-		}
+            v = 0xff000000;
+            v |= Math::clamp( BAYER_HQ_R_AT_B_ODD( src1, src2, src3, src4, src5 ), 0x0, 0xff ); // RED
+            v |= Math::clamp( BAYER_HQ_G_AT_B( src1, src2, src3, src4, src5 ), 0x0, 0xff ) << 8; // GREEN
+            v |= *src3 << 16; // BLUE
+            *dst++ = v;
+            src1++;
+            src2++;
+            src3++;
+            src4++;
+            src5++;
+        }
 
-		v = 0xff000000;
-		v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ); // RED
-		v |= *src3 << 8; // GREEN
-		v |= BAYER_MIX2( HQPTR(src3,-1), HQPTR(src3,1) ) << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
+        v = 0xff000000;
+        v |= BAYER_MIX2( HQPTR(src2,0), HQPTR(src4,0) ); // RED
+        v |= *src3 << 8; // GREEN
+        v |= BAYER_MIX2( HQPTR(src3,-1), HQPTR(src3,1) ) << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
 
-		v = 0xff000000;
-		v |= BAYER_MIX2( HQPTR(src2,-1), HQPTR(src4,-1) ); // RED
-		v |= BAYER_MIX4( HQPTR(src2,0), HQPTR(src4,0), HQPTR(src3,-1), HQPTR(src3,-1) ) << 8; // GREEN
-		v |= *src3 << 16; // BLUE
-		*dst++ = v;
-		src1++;
-		src2++;
-		src3++;
-		src4++;
-		src5++;
-	}
+        v = 0xff000000;
+        v |= BAYER_MIX2( HQPTR(src2,-1), HQPTR(src4,-1) ); // RED
+        v |= BAYER_MIX4( HQPTR(src2,0), HQPTR(src4,0), HQPTR(src3,-1), HQPTR(src3,-1) ) << 8; // GREEN
+        v |= *src3 << 16; // BLUE
+        *dst++ = v;
+        src1++;
+        src2++;
+        src3++;
+        src4++;
+        src5++;
+    }
 
 #define _IIR_INITIAL4( c )\
         l0[ c ] = n[ 0 ] * x0[ c ] + n[ 1 ] * x0[ c ] + n[ 2 ] * x0[ c ] + n[ 3 ] * x0[ c ]\
@@ -5911,7 +6060,7 @@ namespace cvt {
 
         // first row
         for( size_t i = 4; i < ( width << 2 ); i+=4 ){
-            dst[ i ]	 = dst[ i - 4 ] + src[ i ];
+            dst[ i ]     = dst[ i - 4 ] + src[ i ];
             dst[ i + 1 ] = dst[ i - 3 ] + src[ i + 1 ];
             dst[ i + 2 ] = dst[ i - 2 ] + src[ i + 2 ];
             dst[ i + 3 ] = dst[ i - 1 ] + src[ i + 3 ];
@@ -5931,7 +6080,7 @@ namespace cvt {
                 currRow[ 2 ] += src[ i + 2 ];
                 currRow[ 3 ] += src[ i + 3 ];
 
-                dst[ i ]	 = currRow[ 0 ]	+ prevRow[ i ];
+                dst[ i ]     = currRow[ 0 ] + prevRow[ i ];
                 dst[ i + 1 ] = currRow[ 1 ] + prevRow[ i + 1 ];
                 dst[ i + 2 ] = currRow[ 2 ] + prevRow[ i + 2 ];
                 dst[ i + 3 ] = currRow[ 3 ] + prevRow[ i + 3 ];
@@ -5996,194 +6145,194 @@ namespace cvt {
     }
 
 
-	void SIMD::boxFilterPrefixSum1_f_to_f( float* dst, size_t dststride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const
-	{
-		// FIXME
-		srcstride >>= 2;
-		dststride >>= 2;
+    void SIMD::boxFilterPrefixSum1_f_to_f( float* dst, size_t dststride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const
+    {
+        // FIXME
+        srcstride >>= 2;
+        dststride >>= 2;
 
-		size_t x;
-		size_t y;
-		size_t boxwr = boxwidth >> 1;
-		size_t boxhr = boxheight >> 1;
-		size_t hend = height - boxhr;
-		size_t wend = width - boxwr;
-		const float* A = src + srcstride * boxhr + boxwr;
-		const float* B = src + boxwr;
-		const float* C = src;
-		const float* D = src + srcstride * boxhr;
-		const float scale = 1.0f / ( boxwidth * boxheight );
+        size_t x;
+        size_t y;
+        size_t boxwr = boxwidth >> 1;
+        size_t boxhr = boxheight >> 1;
+        size_t hend = height - boxhr;
+        size_t wend = width - boxwr;
+        const float* A = src + srcstride * boxhr + boxwr;
+        const float* B = src + boxwr;
+        const float* C = src;
+        const float* D = src + srcstride * boxhr;
+        const float scale = 1.0f / ( boxwidth * boxheight );
 
-		for( y = 0; y <= boxhr; y++ ) {
-			for( x = 0; x <= boxwr; x++ ) {
-				dst[ x ] = A[ x ] / ( float )( ( boxwr + 1 + x ) * ( boxhr + 1 + y ) );
-			}
-			for( ; x < wend; x++ ) {
-				dst[ x ] = ( A[ x ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( boxwidth * ( boxhr + 1 + y ) );
-			}
-			for( ; x < width; x++ ) {
-				dst[ x ] = ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + y ) );
-			}
-			A += srcstride;
-			D += srcstride;
-			dst += dststride;
-		}
+        for( y = 0; y <= boxhr; y++ ) {
+            for( x = 0; x <= boxwr; x++ ) {
+                dst[ x ] = A[ x ] / ( float )( ( boxwr + 1 + x ) * ( boxhr + 1 + y ) );
+            }
+            for( ; x < wend; x++ ) {
+                dst[ x ] = ( A[ x ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( boxwidth * ( boxhr + 1 + y ) );
+            }
+            for( ; x < width; x++ ) {
+                dst[ x ] = ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + y ) );
+            }
+            A += srcstride;
+            D += srcstride;
+            dst += dststride;
+        }
 
-		for( ; y < hend; y++ ) {
-			for( x = 0; x <= boxwr; x++ ) {
-				dst[ x ] = ( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxheight ) );
-			}
-			for( ; x < wend; x++ ) {
-				dst[ x ] = ( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) * scale;
-			}
-			for( ; x < width; x++ ) {
-				dst[ x ] = ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * boxheight );
-			}
+        for( ; y < hend; y++ ) {
+            for( x = 0; x <= boxwr; x++ ) {
+                dst[ x ] = ( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxheight ) );
+            }
+            for( ; x < wend; x++ ) {
+                dst[ x ] = ( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) * scale;
+            }
+            for( ; x < width; x++ ) {
+                dst[ x ] = ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * boxheight );
+            }
 
-			A += srcstride;
-			B += srcstride;
-			C += srcstride;
-			D += srcstride;
-			dst += dststride;
-		}
+            A += srcstride;
+            B += srcstride;
+            C += srcstride;
+            D += srcstride;
+            dst += dststride;
+        }
 
-		A -= srcstride;
-		D -= srcstride;
+        A -= srcstride;
+        D -= srcstride;
 
-		for( ; y < height; y++ ) {
-			for( x = 0; x <= boxwr; x++ ) {
-				dst[ x ] = ( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxhr + 1 + ( height - 1 - y ) ) );
-			}
-			for( ; x < wend; x++ ) {
-				dst[ x ] = ( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) / ( float ) ( boxwidth * ( boxhr + 1 + ( height - 1 - y ) ) );
-			}
-			for( ; x < width; x++ ) {
-				dst[ x ] = ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + ( height - 1 - y ) ) );
-			}
-
-
-			B += srcstride;
-			C += srcstride;
-			dst += dststride;
-		}
-
-	}
-
-	void SIMD::boxFilterPrefixSum1_f_to_u8( uint8_t* dst, size_t dststride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const
-	{
-		// FIXME
-		srcstride >>= 2;
-
-		size_t x;
-		size_t y;
-		size_t boxwr = boxwidth >> 1;
-		size_t boxhr = boxheight >> 1;
-		size_t hend = height - boxhr;
-		size_t wend = width - boxwr;
-		const float* A = src + srcstride * boxhr + boxwr;
-		const float* B = src + boxwr;
-		const float* C = src;
-		const float* D = src + srcstride * boxhr;
-		const float scale = 1.0f / ( boxwidth * boxheight );
-
-		for( y = 0; y <= boxhr; y++ ) {
-			for( x = 0; x <= boxwr; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp( A[ x ] / ( float )( ( boxwr + 1 + x ) * ( boxhr + 1 + y ) ), 0.0f, 255.0f );
-			}
-			for( ; x < wend; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp(( A[ x ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( boxwidth * ( boxhr + 1 + y ) ), 0.0f, 255.0f );
-			}
-			for( ; x < width; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp(( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + y ) ), 0.0f, 255.0f );
-			}
-			A += srcstride;
-			D += srcstride;
-			dst += dststride;
-		}
-
-		for( ; y < hend; y++ ) {
-			for( x = 0; x <= boxwr; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp(( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxheight ) ), 0.0f, 255.0f );
-			}
-			for( ; x < wend; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp(( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) * scale, 0.0f, 255.0f );
-			}
-			for( ; x < width; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp(( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * boxheight ), 0.0f, 255.0f );
-			}
-
-			A += srcstride;
-			B += srcstride;
-			C += srcstride;
-			D += srcstride;
-			dst += dststride;
-		}
-
-		A -= srcstride;
-		D -= srcstride;
-
-		for( ; y < height; y++ ) {
-			for( x = 0; x <= boxwr; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp( ( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxhr + 1 + ( height - 1 - y ) ) ), 0.0f, 255.0f );
-			}
-			for( ; x < wend; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp( ( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) / ( float ) ( boxwidth * ( boxhr + 1 + ( height - 1 - y ) ) ), 0.0f, 255.0f );
-			}
-			for( ; x < width; x++ ) {
-				dst[ x ] = ( uint8_t ) Math::clamp( ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + ( height - 1 - y ) ) ), 0.0f, 255.0f );
-			}
+        for( ; y < height; y++ ) {
+            for( x = 0; x <= boxwr; x++ ) {
+                dst[ x ] = ( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxhr + 1 + ( height - 1 - y ) ) );
+            }
+            for( ; x < wend; x++ ) {
+                dst[ x ] = ( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) / ( float ) ( boxwidth * ( boxhr + 1 + ( height - 1 - y ) ) );
+            }
+            for( ; x < width; x++ ) {
+                dst[ x ] = ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + ( height - 1 - y ) ) );
+            }
 
 
-			B += srcstride;
-			C += srcstride;
-			dst += dststride;
-		}
+            B += srcstride;
+            C += srcstride;
+            dst += dststride;
+        }
 
-	}
+    }
+
+    void SIMD::boxFilterPrefixSum1_f_to_u8( uint8_t* dst, size_t dststride, const float* src, size_t srcstride, size_t width, size_t height, size_t boxwidth, size_t boxheight ) const
+    {
+        // FIXME
+        srcstride >>= 2;
+
+        size_t x;
+        size_t y;
+        size_t boxwr = boxwidth >> 1;
+        size_t boxhr = boxheight >> 1;
+        size_t hend = height - boxhr;
+        size_t wend = width - boxwr;
+        const float* A = src + srcstride * boxhr + boxwr;
+        const float* B = src + boxwr;
+        const float* C = src;
+        const float* D = src + srcstride * boxhr;
+        const float scale = 1.0f / ( boxwidth * boxheight );
+
+        for( y = 0; y <= boxhr; y++ ) {
+            for( x = 0; x <= boxwr; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp( A[ x ] / ( float )( ( boxwr + 1 + x ) * ( boxhr + 1 + y ) ), 0.0f, 255.0f );
+            }
+            for( ; x < wend; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp(( A[ x ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( boxwidth * ( boxhr + 1 + y ) ), 0.0f, 255.0f );
+            }
+            for( ; x < width; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp(( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 ) ]  ) / ( float )( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + y ) ), 0.0f, 255.0f );
+            }
+            A += srcstride;
+            D += srcstride;
+            dst += dststride;
+        }
+
+        for( ; y < hend; y++ ) {
+            for( x = 0; x <= boxwr; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp(( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxheight ) ), 0.0f, 255.0f );
+            }
+            for( ; x < wend; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp(( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) * scale, 0.0f, 255.0f );
+            }
+            for( ; x < width; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp(( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * boxheight ), 0.0f, 255.0f );
+            }
+
+            A += srcstride;
+            B += srcstride;
+            C += srcstride;
+            D += srcstride;
+            dst += dststride;
+        }
+
+        A -= srcstride;
+        D -= srcstride;
+
+        for( ; y < height; y++ ) {
+            for( x = 0; x <= boxwr; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp( ( A[ x ] - B[ x ] ) / ( float )( ( boxwr + 1 + x) * ( boxhr + 1 + ( height - 1 - y ) ) ), 0.0f, 255.0f );
+            }
+            for( ; x < wend; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp( ( A[ x ] - D[ x - ( boxwr + 1 ) ] - B[ x ] + C[ x - ( boxwr + 1 ) ]  ) / ( float ) ( boxwidth * ( boxhr + 1 + ( height - 1 - y ) ) ), 0.0f, 255.0f );
+            }
+            for( ; x < width; x++ ) {
+                dst[ x ] = ( uint8_t ) Math::clamp( ( A[ width - 1 - boxwr ] - D[ x - ( boxwr + 1 )] - B[ width - 1 - boxwr ] + C[ x - ( boxwr + 1) ]  ) / ( float ) ( ( boxwr + 1 + ( width - 1 - x ) ) * ( boxhr + 1 + ( height - 1 - y ) ) ), 0.0f, 255.0f );
+            }
 
 
-	void SIMD::adaptiveThreshold1_f_to_u8( uint8_t* dst, const float* src, const float* srcmean, size_t n, float t ) const
-	{
-		while ( n-- ) {
-			*dst++ = ( *src++ - *srcmean++ ) > t ? 0xff : 0x0;
-		}
-	}
+            B += srcstride;
+            C += srcstride;
+            dst += dststride;
+        }
 
-	void SIMD::adaptiveThreshold1_f_to_f( float* dst, const float* src, const float* srcmean, size_t n, float t ) const
-	{
-		while ( n-- ) {
-			*dst++ = ( *src++ - *srcmean++ ) > t ? 1.0f : 0.0f;
-		}
-	}
-
-	void SIMD::threshold1_f_to_u8( uint8_t* dst, const float* src, size_t n, float t ) const
-	{
-		while ( n-- ) {
-			*dst++ = ( *src++ ) > t ? 0xff : 0x0;
-		}
-	}
-
-	void SIMD::threshold1_f_to_f( float* dst, const float* src, size_t n, float t ) const
-	{
-		while ( n-- ) {
-			*dst++ = ( *src++ ) > t ? 1.0f : 0.0f;
-		}
-	}
+    }
 
 
-	void SIMD::threshold1_u8_to_u8( uint8_t* dst, const uint8_t* src, size_t n, uint8_t t ) const
-	{
-		while( n-- ) {
-			*dst++ = ( *src++ ) > t ? 0xff : 0x0;
-		}
-	}
+    void SIMD::adaptiveThreshold1_f_to_u8( uint8_t* dst, const float* src, const float* srcmean, size_t n, float t ) const
+    {
+        while ( n-- ) {
+            *dst++ = ( *src++ - *srcmean++ ) > t ? 0xff : 0x0;
+        }
+    }
 
-	void SIMD::threshold1_u8_to_f( float* dst, const uint8_t* src, size_t n, uint8_t t ) const
-	{
-		while( n-- ) {
-			*dst++ = ( *src++ ) > t ? 1.0f : 0;
-		}
-	}
+    void SIMD::adaptiveThreshold1_f_to_f( float* dst, const float* src, const float* srcmean, size_t n, float t ) const
+    {
+        while ( n-- ) {
+            *dst++ = ( *src++ - *srcmean++ ) > t ? 1.0f : 0.0f;
+        }
+    }
+
+    void SIMD::threshold1_f_to_u8( uint8_t* dst, const float* src, size_t n, float t ) const
+    {
+        while ( n-- ) {
+            *dst++ = ( *src++ ) > t ? 0xff : 0x0;
+        }
+    }
+
+    void SIMD::threshold1_f_to_f( float* dst, const float* src, size_t n, float t ) const
+    {
+        while ( n-- ) {
+            *dst++ = ( *src++ ) > t ? 1.0f : 0.0f;
+        }
+    }
+
+
+    void SIMD::threshold1_u8_to_u8( uint8_t* dst, const uint8_t* src, size_t n, uint8_t t ) const
+    {
+        while( n-- ) {
+            *dst++ = ( *src++ ) > t ? 0xff : 0x0;
+        }
+    }
+
+    void SIMD::threshold1_u8_to_f( float* dst, const uint8_t* src, size_t n, uint8_t t ) const
+    {
+        while( n-- ) {
+            *dst++ = ( *src++ ) > t ? 1.0f : 0;
+        }
+    }
 
     void SIMD::sumPoints( Vector2f& dst, const Vector2f* src, size_t n ) const
     {
@@ -6260,7 +6409,7 @@ namespace cvt {
     void SIMD::transformPoints( Vector3f* dst, const Matrix4f& _mat, const Vector3f* src, size_t n ) const
     {
         Matrix3f mat = _mat.toMatrix3();
-        Vector3f t( _mat[ 0 ][ 3 ], _mat[ 1 ][ 3 ], _mat[ 1 ][ 3 ] );
+        Vector3f t( _mat[ 0 ][ 3 ], _mat[ 1 ][ 3 ], _mat[ 2 ][ 3 ] );
 
         while( n-- )
             *dst++ = mat * *src++ + t;
