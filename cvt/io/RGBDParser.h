@@ -40,8 +40,8 @@ namespace cvt
         public:
             struct RGBDSample
             {
-                Image		rgb;
-                Image		depth;
+                Image       rgb;
+                Image       depth;
 
                 /**
                  * @brief orientation from world: q_wc
@@ -50,7 +50,7 @@ namespace cvt
                 Vector3d    position;
 
                 bool        poseValid;
-                double		stamp;
+                double      stamp;
 
                 template<typename T>
                 Matrix4<T> pose() const
@@ -67,34 +67,34 @@ namespace cvt
 
             void next();
 
-            size_t				iter()    const { return _idx; }
-            size_t				size()    const { return _stamps.size(); }            
+            size_t              iter()    const { return _idx; }
+            size_t              size()    const { return _stamps.size(); }
             bool                hasNext() const { return _idx < _stamps.size(); }
 
             bool                hasGroundTruthPose() const { return _sample.poseValid; }
-			Matrix4d            groundTruthPose()    const { return _sample.pose<double>(); }
+            Matrix4d            groundTruthPose()    const { return _sample.pose<double>(); }
             const Image&        depth() const { return _sample.depth; }
-			const Image&        rgb()   const { return _sample.rgb; }
-			double				stamp() const { return _sample.stamp; }
+            const Image&        rgb()   const { return _sample.rgb; }
+            double              stamp() const { return _sample.stamp; }
 
-			const RGBDSample&	data()  const { return _sample; }
+            const RGBDSample&   data()  const { return _sample; }
             void                setIdx( size_t idx ) { _idx = idx; }
             const String&       rgbFile( size_t idx ) const { return _rgbFiles[ idx ]; }
             const String&       depthFile( size_t idx ) const { return _depthFiles[ idx ]; }
 
         private:
-            const double			 _maxStampDiff;
-            String					 _folder;
+            const double             _maxStampDiff;
+            String                   _folder;
 
             std::vector<Quaterniond> _orientations;
             std::vector<Vector3d>    _positions;
-            std::vector<String>		 _rgbFiles;
-            std::vector<String>		 _depthFiles;
-            std::vector<double>		 _stamps;
-            std::vector<bool>		 _poseValid;
+            std::vector<String>      _rgbFiles;
+            std::vector<String>      _depthFiles;
+            std::vector<double>      _stamps;
+            std::vector<bool>        _poseValid;
 
-            RGBDSample				_sample;
-            size_t					_idx;
+            RGBDSample              _sample;
+            size_t                  _idx;
 
 
             void loadGroundTruth();

@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -73,10 +74,8 @@ namespace cvt {
         loadImageNames( filesRight, rightFolder );
 
         if( hasPoseFile ){
-            std::cout << "Loading poses: " << std::endl;
             loadPoses( poses, poseFile );
         }
-        std::cout << "Loading stamps: " << std::endl;
         loadStamps( stamps, timesFile );
 
         // check sizes:
@@ -110,12 +109,21 @@ namespace cvt {
         loadImages();
 
         // get the stereo calibration: we need the images sizes, that's why it has to be done after the load
-        std::cout << "Loading calibFile: " << std::endl;
         loadCalibration( calibFile );
     }
 
     KittiVOParser::~KittiVOParser()
     {
+    }
+
+
+    void KittiVOParser::seek( size_t pos )
+    {
+        if( pos < _sequence.size() ) {
+            _iter = pos;
+            _curSample = &_sequence[ _iter ];
+            loadImages();
+        }
     }
 
     bool KittiVOParser::nextFrame( size_t /*timeout*/ )
@@ -132,7 +140,7 @@ namespace cvt {
     bool KittiVOParser::hasNext() const
     {
         return ( _iter + 1 ) < _sequence.size();
-    }    
+    }
 
     void KittiVOParser::checkFileExistence( const cvt::String& file )
     {
@@ -214,7 +222,7 @@ namespace cvt {
     {
         cvt::Data d;
         if( !cvt::FileSystem::load( d, calibFile ) ){
-            throw CVTException( "Error when loading times file!" );
+            throw CVTException( "Error when loading calib file!" );
         }
 
         cvt::DataIterator iter( d );
@@ -255,7 +263,7 @@ namespace cvt {
                 _calibLeft[ 2 ][ 0 ] = lineTokens[ 9  ].toDouble();
                 _calibLeft[ 2 ][ 1 ] = lineTokens[ 10 ].toDouble();
                 _calibLeft[ 2 ][ 2 ] = lineTokens[ 11 ].toDouble();
-                _calibLeft[ 2 ][ 3 ] = lineTokens[ 12 ].toDouble();                
+                _calibLeft[ 2 ][ 3 ] = lineTokens[ 12 ].toDouble();
                 continue;
             }
 
@@ -275,7 +283,7 @@ namespace cvt {
                 _calibRight[ 2 ][ 0 ] = lineTokens[ 9  ].toDouble();
                 _calibRight[ 2 ][ 1 ] = lineTokens[ 10 ].toDouble();
                 _calibRight[ 2 ][ 2 ] = lineTokens[ 11 ].toDouble();
-                _calibRight[ 2 ][ 3 ] = lineTokens[ 12 ].toDouble();                
+                _calibRight[ 2 ][ 3 ] = lineTokens[ 12 ].toDouble();
                 continue;
             }
         }
@@ -299,7 +307,10 @@ namespace cvt {
         _calib.setFirstCamera( cLeft );
 
         intr = _calibRight.toMatrix3();
-        extrinsics[ 0 ][ 3 ] = _calibRight[ 0 ][ 3 ] / intr[ 0 ][ 0 ];
+        extrinsics[ 0 ][ 3 ] = ( _calibRight[ 0 ][ 3 ] - _calibLeft[ 0 ][ 3 ] ) / _calibLeft[ 0 ][ 0 ];
+        extrinsics[ 1 ][ 3 ] = 0;// ( _calibRight[ 1 ][ 3 ] - _calibLeft[ 1 ][ 3 ] ) / intr[ 0 ][ 0 ];
+        extrinsics[ 2 ][ 3 ] = 0;// ( _calibRight[ 2 ][ 3 ] - _calibLeft[ 2 ][ 3 ] ) / intr[ 0 ][ 0 ];
+
         cRight.setDistortion( radialDist, tangentialDist );
         cRight.setIntrinsics( intr );
         cRight.setExtrinsics( extrinsics );
@@ -308,6 +319,5 @@ namespace cvt {
         _calib.setSecondCamera( cRight );
         _calib.setExtrinsics( extrinsics );
     }
-
 
 }

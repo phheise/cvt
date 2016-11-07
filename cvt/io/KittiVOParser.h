@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -51,6 +52,8 @@ namespace cvt {
             bool            hasPose() const { return _curSample->hasPose; }
             const Matrix4d& pose()    const { return _curSample->pose; }
             double          stamp()   const { return _curSample->timestamp; }
+
+            void            seek( size_t pos );
 
         private:
             struct Sample {

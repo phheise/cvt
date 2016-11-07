@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +53,6 @@ namespace cvt
         bool associated = false;
         if( FileSystem::exists( assocFile ) ){
             // load the associated
-            std::cout << "Using preassociated file" << std::endl;
             loadDepthAndRGB( rgbStamps, depthStamps );
             associated = true;
         } else {
@@ -61,20 +61,12 @@ namespace cvt
         }
         loadGroundTruth();
 
-        std::cout << "RGB: "    << _rgbFiles.size() << std::endl;
-        std::cout << "Depth: "  << _depthFiles.size() << std::endl;
-        std::cout << "Stamps: " << _stamps.size() << std::endl;
-
         sortOutData( rgbStamps, depthStamps, associated );
-        std::cout << "RGB: " << _rgbFiles.size() << std::endl;
-        std::cout << "Depth: " << _depthFiles.size() << std::endl;
-        std::cout << "Stamps: " << _stamps.size() << std::endl;
     }
 
     void RGBDParser::next()
     {
         if( _idx >= _stamps.size() ){
-            std::cout << "End of data !" << std::endl;
             return;
         }
         _sample.stamp	= _stamps[ _idx ];
@@ -189,7 +181,7 @@ namespace cvt
         }
 
         // now we should have a valid line with 8 tokens!
-        if( tokens.size() != 8 ) std::cout << "File corrupt?!" << std::endl;
+        if( tokens.size() != 8 ) std::cerr << "File corrupt?!" << std::endl;
 
         stamp = tokens[ 0 ].toDouble();
         position.x = tokens[ 1 ].toDouble();
@@ -221,7 +213,7 @@ namespace cvt
         }
 
         // now we should have a valid line with 8 tokens!
-        if( tokens.size() != 2 ) std::cout << "File corrupt?!" << std::endl;
+        if( tokens.size() != 2 ) std::cerr << "File corrupt?!" << std::endl;
 
         stamp = tokens[ 0 ].toDouble();
         filename = tokens[ 1 ];
@@ -290,7 +282,6 @@ namespace cvt
            }
            rgbIdx++;
         }
-        std::cout << "Found: " << stamps.size() << " matches" << std::endl;
 
         _orientations = orientations;
         _positions = positions;
