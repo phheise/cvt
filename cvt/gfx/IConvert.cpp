@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -28,26 +29,26 @@
 
 namespace cvt {
 
-#define LAST_FORMAT	( IFORMAT_UYVY_UINT8 )
+#define LAST_FORMAT ( IFORMAT_UYVY_UINT8 )
 
 #define TABLE( table, source, dst ) table[ ( ( source ) - 1 ) * LAST_FORMAT + ( dst ) - 1 ]
 
     IConvert* IConvert::_instance = 0;
 
 
-    #define CONV( func, dI, dsttype, sI, srctype, width )				\
-    {																	\
-        sbase = src = sI.map( &sstride );								\
-        dbase = dst = dI.map( &dstride );								\
-        h = sI.height();												\
-        while( h-- ) {													\
+    #define CONV( func, dI, dsttype, sI, srctype, width )               \
+    {                                                                   \
+        sbase = src = sI.map( &sstride );                               \
+        dbase = dst = dI.map( &dstride );                               \
+        h = sI.height();                                                \
+        while( h-- ) {                                                  \
             simd->func( ( dsttype ) dst, ( const srctype ) src, width );\
-            src += sstride;												\
-            dst += dstride;												\
-        }																\
-        sI.unmap( sbase );												\
-        dI.unmap( dbase );												\
-        return;															\
+            src += sstride;                                             \
+            dst += dstride;                                             \
+        }                                                               \
+        sI.unmap( sbase );                                              \
+        dI.unmap( dbase );                                              \
+        return;                                                         \
     }
 
     static void Conv_XYZAf_to_ZYXAf( Image & dstImage, const Image & sourceImage, IConvertFlags )
@@ -225,6 +226,35 @@ namespace cvt {
         size_t h;
 
         CONV( Conv_RGBAu8_to_GRAYf, dstImage, float*, sourceImage, uint8_t*, sourceImage.width() )
+    }
+
+
+    static void Conv_RGBAu16_to_GRAYf( Image & dstImage, const Image & sourceImage, IConvertFlags )
+    {
+        SIMD* simd = SIMD::instance();
+        const uint8_t* src;
+        const uint8_t* sbase;
+        size_t sstride;
+        size_t dstride;
+        uint8_t* dst;
+        uint8_t* dbase;
+        size_t h;
+
+        CONV( Conv_RGBAu16_to_GRAYf, dstImage, float*, sourceImage, uint16_t*, sourceImage.width() )
+    }
+
+    static void Conv_BGRAu16_to_GRAYf( Image & dstImage, const Image & sourceImage, IConvertFlags )
+    {
+        SIMD* simd = SIMD::instance();
+        const uint8_t* src;
+        const uint8_t* sbase;
+        size_t sstride;
+        size_t dstride;
+        uint8_t* dst;
+        uint8_t* dbase;
+        size_t h;
+
+        CONV( Conv_BGRAu16_to_GRAYf, dstImage, float*, sourceImage, uint16_t*, sourceImage.width() )
     }
 
     static void Conv_GRAYu8_to_XXXAu8( Image & dstImage, const Image & sourceImage, IConvertFlags )
@@ -545,62 +575,62 @@ namespace cvt {
         dst = ( uint32_t* ) odst;
         dstride = dstride >> 2;
 
-		if( flags & ICONVERT_DEBAYER_HQLINEAR ) {
-			simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
-			dst += dstride;
-			simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-			dst += dstride;
-			for( i = 2; i < h - 2; i += 2 ) {
-				simd->debayerhq_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-				src4 += sstride;
-				src5 += sstride;
-				simd->debayerhq_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-				src4 += sstride;
-				src5 += sstride;
-			}
-			if( h - 2 == i ) {
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src3, src4, w >> 2 );
-				dst += dstride;
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
-			} else {
-				simd->debayerhq_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
-				dst += dstride;
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src3, src4, src5, w >> 2 );
-				dst += dstride;
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
-			}
+        if( flags & ICONVERT_DEBAYER_HQLINEAR ) {
+            simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
+            dst += dstride;
+            simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+            dst += dstride;
+            for( i = 2; i < h - 2; i += 2 ) {
+                simd->debayerhq_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+                src4 += sstride;
+                src5 += sstride;
+                simd->debayerhq_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+                src4 += sstride;
+                src5 += sstride;
+            }
+            if( h - 2 == i ) {
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src3, src4, w >> 2 );
+                dst += dstride;
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
+            } else {
+                simd->debayerhq_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
+                dst += dstride;
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src3, src4, src5, w >> 2 );
+                dst += dstride;
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
+            }
 
-		} else {
-			simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
-			dst += dstride;
-			for( i = 1; i < h - 1; i += 2 ) {
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-			}
-			if( h - 1 == i )
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src1, w >> 2 );
-			else {
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-				dst += dstride;
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src3, src2, w >> 2 );
-			}
-		}
+        } else {
+            simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
+            dst += dstride;
+            for( i = 1; i < h - 1; i += 2 ) {
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+            }
+            if( h - 1 == i )
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src1, w >> 2 );
+            else {
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+                dst += dstride;
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src2, src3, src2, w >> 2 );
+            }
+        }
 
         dstImage.unmap( odst );
         sourceImage.unmap( osrc );
@@ -742,62 +772,62 @@ namespace cvt {
         dst = ( uint32_t* ) odst;
         dstride = dstride >> 2;
 
-		if( flags & ICONVERT_DEBAYER_HQLINEAR ) {
-			simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
-			dst += dstride;
-			simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-			dst += dstride;
-			for( i = 2; i < h - 2; i += 2 ) {
-				simd->debayerhq_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-				src4 += sstride;
-				src5 += sstride;
-				simd->debayerhq_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-				src4 += sstride;
-				src5 += sstride;
-			}
-			if( h - 2 == i ) {
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src3, src4, w >> 2 );
-				dst += dstride;
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
-			} else {
-				simd->debayerhq_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
-				dst += dstride;
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src3, src4, src5, w >> 2 );
-				dst += dstride;
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
-			}
+        if( flags & ICONVERT_DEBAYER_HQLINEAR ) {
+            simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
+            dst += dstride;
+            simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+            dst += dstride;
+            for( i = 2; i < h - 2; i += 2 ) {
+                simd->debayerhq_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+                src4 += sstride;
+                src5 += sstride;
+                simd->debayerhq_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+                src4 += sstride;
+                src5 += sstride;
+            }
+            if( h - 2 == i ) {
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src3, src4, w >> 2 );
+                dst += dstride;
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
+            } else {
+                simd->debayerhq_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, src4, src5, w );
+                dst += dstride;
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src3, src4, src5, w >> 2 );
+                dst += dstride;
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src3, src4, src3, w >> 2 );
+            }
 
-		} else {
-			simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
-			dst += dstride;
-			for( i = 1; i < h - 1; i += 2 ) {
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-				dst += dstride;
-				src1 += sstride;
-				src2 += sstride;
-				src3 += sstride;
-			}
-			if( h - 1 == i )
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src1, w >> 2 );
-			else {
-				simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
-				dst += dstride;
-				simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src3, src2, w >> 2 );
-			}
-		}
+        } else {
+            simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src1, src2, w >> 2 );
+            dst += dstride;
+            for( i = 1; i < h - 1; i += 2 ) {
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+                dst += dstride;
+                src1 += sstride;
+                src2 += sstride;
+                src3 += sstride;
+            }
+            if( h - 1 == i )
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src1, w >> 2 );
+            else {
+                simd->debayer_EVEN_RGGBu8_RGBAu8( dst, src1, src2, src3, w >> 2 );
+                dst += dstride;
+                simd->debayer_ODD_RGGBu8_RGBAu8( dst, src2, src3, src2, w >> 2 );
+            }
+        }
 
             dstImage.unmap( odst );
             sourceImage.unmap( osrc );
@@ -960,6 +990,7 @@ namespace cvt {
 
         /* RGBA_UINT16 TO X */
         TABLE( _convertFuncs, IFORMAT_RGBA_UINT16, IFORMAT_RGBA_FLOAT ) = &Conv_u16_to_f;
+        TABLE( _convertFuncs, IFORMAT_RGBA_UINT16, IFORMAT_GRAY_FLOAT ) = &Conv_RGBAu16_to_GRAYf;
 
         /* RGBA_FLOAT TO X */
         TABLE( _convertFuncs, IFORMAT_RGBA_FLOAT, IFORMAT_RGBA_UINT8 )  = &Conv_XXXAf_to_XXXAu8;
@@ -975,8 +1006,9 @@ namespace cvt {
         TABLE( _convertFuncs, IFORMAT_BGRA_UINT8, IFORMAT_RGBA_FLOAT ) = &Conv_XYZAu8_to_ZYXAf;
         TABLE( _convertFuncs, IFORMAT_BGRA_UINT8, IFORMAT_BGRA_FLOAT ) = &Conv_XXXAu8_to_XXXAf;
 
-        /* RGBA_UINT16 TO X */
+        /* BGRA_UINT16 TO X */
         TABLE( _convertFuncs, IFORMAT_BGRA_UINT16, IFORMAT_BGRA_FLOAT ) = &Conv_u16_to_f;
+        TABLE( _convertFuncs, IFORMAT_BGRA_UINT16, IFORMAT_GRAY_FLOAT ) = &Conv_BGRAu16_to_GRAYf;
 
         /* BGRA_FLOAT TO X */
         TABLE( _convertFuncs, IFORMAT_BGRA_FLOAT, IFORMAT_BGRA_UINT8 )  = &Conv_XXXAf_to_XXXAu8;
