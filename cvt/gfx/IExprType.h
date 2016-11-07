@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -26,11 +27,12 @@
 #define CVT_IEXPRTYPE_H
 
 namespace cvt {
-	enum IExprType {
-		IEXPR_ADD = 0,
-		IEXPR_SUB,
-		IEXPR_MUL
-	};
+    enum IExprType {
+        IEXPR_ADD = 0,
+        IEXPR_SUB,
+        IEXPR_MUL,
+        IEXPR_DIV
+    };
 }
 
 #endif

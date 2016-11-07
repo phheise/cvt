@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -30,338 +31,372 @@
 #include <cvt/gfx/IMapScoped.h>
 
 namespace cvt {
-	template<IExprType type>
-	struct IExprOperation {
-		float operator()( float a, float b );
-	};
+    template<IExprType type>
+    struct IExprOperation {
+        float operator()( float a, float b );
+    };
 
-	template<>
-	struct IExprOperation<IEXPR_ADD> {
-		float operator()( float a, float b ) { return a + b; }
-	};
+    template<>
+    struct IExprOperation<IEXPR_ADD> {
+        float operator()( float a, float b ) { return a + b; }
+    };
 
-	template<>
-	struct IExprOperation<IEXPR_SUB> {
-		float operator()( float a, float b ) { return a - b; }
-	};
+    template<>
+    struct IExprOperation<IEXPR_SUB> {
+        float operator()( float a, float b ) { return a - b; }
+    };
 
-	template<>
-	struct IExprOperation<IEXPR_MUL> {
-		float operator()( float a, float b ) { return a * b; }
-	};
+    template<>
+    struct IExprOperation<IEXPR_MUL> {
+        float operator()( float a, float b ) { return a * b; }
+    };
 
-	template<typename T1, typename T2, IExprType op>
-	class IExprBinary
-	{
-		public:
-			IExprBinary( const T1& opa, const T2& opb ) : op1( opa ), op2( opb ) {}
+    template<>
+    struct IExprOperation<IEXPR_DIV> {
+        float operator()( float a, float b ) { return a / b; }
+    };
 
-			void eval( Image& dst ) const
-			{
-				if( !hasSizeFormat( dst.width(), dst.height(), dst.format() ) )
-					throw CVTException( "Invalid image expression or assignment!" );
+    template<typename T1, typename T2, IExprType op>
+    class IExprBinary
+    {
+        public:
+            IExprBinary( const T1& opa, const T2& opb ) : op1( opa ), op2( opb ) {}
 
-				map();
+            void eval( Image& dst ) const
+            {
+                if( !hasSizeFormat( dst.width(), dst.height(), dst.format() ) )
+                    throw CVTException( "Invalid image expression or assignment!" );
 
-				IMapScoped<float> imap( dst );
-				size_t height = dst.height();
-				size_t width = dst.width() * dst.format().channels;
-				for( size_t y = 0; y < height; y++ ) {
-					setLine( y );
-					imap.setLine( y );
-					float* dstptr = imap.ptr();
+                map();
 
-					for( size_t x = 0; x < width; x++ )
-						dstptr[ x ] = eval( x );
-				}
+                IMapScoped<float> imap( dst );
+                size_t height = dst.height();
+                size_t width = dst.width() * dst.format().channels;
+                for( size_t y = 0; y < height; y++ ) {
+                    setLine( y );
+                    imap.setLine( y );
+                    float* dstptr = imap.ptr();
 
-				unmap();
-			}
+                    for( size_t x = 0; x < width; x++ )
+                        dstptr[ x ] = eval( x );
+                }
 
-			void map() const
-			{
-				op1.map();
-				op2.map();
-			}
+                unmap();
+            }
 
-			void unmap() const
-			{
-				op1.unmap();
-				op2.unmap();
-			}
+            void map() const
+            {
+                op1.map();
+                op2.map();
+            }
 
-			void setLine( size_t y ) const
-			{
-				op1.setLine( y );
-				op2.setLine( y );
-			}
+            void unmap() const
+            {
+                op1.unmap();
+                op2.unmap();
+            }
 
-			float eval( size_t x ) const
-			{
-				IExprOperation<op> theop;
-				return theop( op1.eval( x ), op2.eval( x ) );
-			}
+            void setLine( size_t y ) const
+            {
+                op1.setLine( y );
+                op2.setLine( y );
+            }
 
-			bool hasSizeFormat( size_t width, size_t height, const IFormat& format ) const
-			{
-				if( !op1.hasSizeFormat( width, height, format ) )
-					return false;
-				return op2.hasSizeFormat( width, height, format );
-			}
+            float eval( size_t x ) const
+            {
+                IExprOperation<op> theop;
+                return theop( op1.eval( x ), op2.eval( x ) );
+            }
 
-			T1		  op1;
-			T2		  op2;
-	};
+            bool hasSizeFormat( size_t width, size_t height, const IFormat& format ) const
+            {
+                if( !op1.hasSizeFormat( width, height, format ) )
+                    return false;
+                return op2.hasSizeFormat( width, height, format );
+            }
 
-	class IExprScalar
-	{
-		public:
-			IExprScalar( float v ) : value( v ) {}
+            T1        op1;
+            T2        op2;
+    };
 
-			void  map() const {}
-			void  unmap() const {}
-			void  setLine( size_t ) const {}
-			float eval( size_t ) const { return value; }
-			bool  hasSizeFormat( size_t, size_t , const IFormat& ) const { return true; }
+    class IExprScalar
+    {
+        public:
+            IExprScalar( float v ) : value( v ) {}
 
-			float value;
-	};
+            void  map() const {}
+            void  unmap() const {}
+            void  setLine( size_t ) const {}
+            float eval( size_t ) const { return value; }
+            bool  hasSizeFormat( size_t, size_t , const IFormat& ) const { return true; }
 
-	class IExprImage
-	{
-		public:
-			IExprImage( const Image& i ) : img( i ) {}
+            float value;
+    };
 
-			void map() const
-			{
-				imap = new IMapScoped<const float>( img );
-			}
+    class IExprImage
+    {
+        public:
+            IExprImage( const Image& i ) :
+                img( i ),
+                imap( 0x0 ),
+                ptr( 0x0 )
+            {}
 
-			void unmap() const
-			{
-				delete imap;
-			}
+            void map() const
+            {
+                imap = new IMapScoped<const float>( img );
+            }
 
-			void setLine( size_t y ) const
-			{
-				ptr = imap->line( y );
-			}
+            void unmap() const
+            {
+                delete imap;
+            }
 
-			float eval( size_t x ) const
-			{
-				return ptr[ x ];
-			}
+            void setLine( size_t y ) const
+            {
+                ptr = imap->line( y );
+            }
 
-			bool hasSizeFormat( size_t width, size_t height, const IFormat& format ) const
-			{
-				return img.width() == width && img.height() == height && img.format() == format;
-			}
+            float eval( size_t x ) const
+            {
+                return ptr[ x ];
+            }
 
-			const Image&					 img;
-			mutable IMapScoped<const float>* imap;
-			mutable const float*			 ptr;
-	};
+            bool hasSizeFormat( size_t width, size_t height, const IFormat& format ) const
+            {
+                return img.width() == width && img.height() == height && img.format() == format;
+            }
 
-	template<typename TX>
-	struct IExprTypeFromT {
-		typedef TX T;
-	};
+            const Image&                     img;
+            mutable IMapScoped<const float>* imap;
+            mutable const float*             ptr;
+    };
 
-	template<>
-	struct IExprTypeFromT<float> {
-		typedef IExprScalar T;
-	};
+    template<typename TX>
+    struct IExprTypeFromT {
+        typedef TX T;
+    };
 
-	template<>
-	struct IExprTypeFromT<Image> {
-		typedef IExprImage T;
-	};
+    template<>
+    struct IExprTypeFromT<float> {
+        typedef IExprScalar T;
+    };
+
+    template<>
+    struct IExprTypeFromT<Image> {
+        typedef IExprImage T;
+    };
 
     template<typename T1, typename T2, IExprType op>
     inline std::ostream& operator<<( std::ostream& out, const IExprBinary<T1,T2,op>& expr )
     {
-		char opToChar[] = { '+', '-' , '*' };
-		out << "(" << expr.op1 << opToChar[ op ] << expr.op2 << ")";
+        char opToChar[] = { '+', '-' , '*' };
+        out << "(" << expr.op1 << opToChar[ op ] << expr.op2 << ")";
         return out;
     }
 
     inline std::ostream& operator<<( std::ostream& out, const IExprScalar& scalar )
     {
-		out << scalar.value;
+        out << scalar.value;
         return out;
     }
 
     inline std::ostream& operator<<( std::ostream& out, const IExprImage& )
     {
-		out << "Image";
+        out << "Image";
         return out;
     }
 
-
-	/*
-		SIMD special cases go here:
-	 */
+    /*
+        SIMD special cases go here:
+     */
 #if 0
-	template<>
-	void IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>::eval( Image& dst )
-	{
-	}
+    template<>
+    void IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>::eval( Image& dst )
+    {
+    }
 #endif
 
-	/*
-		- Image -> Image * -1
-	 */
-	inline IExprBinary<IExprImage,IExprScalar, IEXPR_MUL> operator-( const Image& img )
-	{
-		return IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>( IExprImage( img ), IExprScalar( -1.0f ) );
-	}
+    /*
+        - Image -> Image * -1
+     */
+    inline IExprBinary<IExprImage,IExprScalar, IEXPR_MUL> operator-( const Image& img )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>( IExprImage( img ), IExprScalar( -1.0f ) );
+    }
 
-	/*
-		Image + float
-		float + Image
-	 */
-	inline IExprBinary<IExprImage,IExprScalar,IEXPR_ADD> operator+( const float val, const Image& img )
-	{
-		return IExprBinary<IExprImage,IExprScalar,IEXPR_ADD>( IExprImage( img ), IExprScalar( val ) );
-	}
+    /*
+        Image + float
+        float + Image
+     */
+    inline IExprBinary<IExprImage,IExprScalar,IEXPR_ADD> operator+( const float val, const Image& img )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_ADD>( IExprImage( img ), IExprScalar( val ) );
+    }
 
-	inline IExprBinary<IExprImage,IExprScalar,IEXPR_ADD> operator+( const Image& img, const float val )
-	{
-		return IExprBinary<IExprImage,IExprScalar,IEXPR_ADD>( IExprImage( img ), IExprScalar( val ) );
-	}
+    inline IExprBinary<IExprImage,IExprScalar,IEXPR_ADD> operator+( const Image& img, const float val )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_ADD>( IExprImage( img ), IExprScalar( val ) );
+    }
 
-	/*
-		Image - float
-		float - Image
-	 */
-	inline IExprBinary<IExprImage,IExprScalar,IEXPR_SUB> operator-( const float val, const Image& img )
-	{
-		return IExprBinary<IExprImage,IExprScalar,IEXPR_SUB>( IExprImage( img ), IExprScalar( val ) );
-	}
+    /*
+        Image - float
+        float - Image
+     */
+    inline IExprBinary<IExprImage,IExprScalar,IEXPR_SUB> operator-( const float val, const Image& img )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_SUB>( IExprImage( img ), IExprScalar( val ) );
+    }
 
-	inline IExprBinary<IExprImage,IExprScalar,IEXPR_SUB> operator-( const Image& img, const float val )
-	{
-		return IExprBinary<IExprImage,IExprScalar,IEXPR_SUB>( IExprImage( img ), IExprScalar( val ) );
-	}
+    inline IExprBinary<IExprImage,IExprScalar,IEXPR_SUB> operator-( const Image& img, const float val )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_SUB>( IExprImage( img ), IExprScalar( val ) );
+    }
 
-	/*
-		Image * float
-		float * Image
-	 */
-	inline IExprBinary<IExprImage,IExprScalar,IEXPR_MUL> operator*( const float val, const Image& img )
-	{
-		return IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>( IExprImage( img ), IExprScalar( val ) );
-	}
+    /*
+        Image * float
+        float * Image
+     */
+    inline IExprBinary<IExprImage,IExprScalar,IEXPR_MUL> operator*( const float val, const Image& img )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>( IExprImage( img ), IExprScalar( val ) );
+    }
 
-	inline IExprBinary<IExprImage,IExprScalar,IEXPR_MUL> operator*( const Image& img, const float val )
-	{
-		return IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>( IExprImage( img ), IExprScalar( val ) );
-	}
+    inline IExprBinary<IExprImage,IExprScalar,IEXPR_MUL> operator*( const Image& img, const float val )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_MUL>( IExprImage( img ), IExprScalar( val ) );
+    }
 
-	/*
-		Image + Image
-	 */
-	inline IExprBinary<IExprImage,IExprImage,IEXPR_ADD> operator+( const Image& img1, const Image& img2 )
-	{
-		return IExprBinary<IExprImage, IExprImage, IEXPR_ADD>( IExprImage( img1), IExprImage( img2 ) );
-	}
+    /*
+        Image / float
+        float / Image
+     */
+    inline IExprBinary<IExprScalar,IExprImage,IEXPR_DIV> operator/( const float val, const Image& img )
+    {
+        return IExprBinary<IExprScalar,IExprImage,IEXPR_DIV>( IExprScalar( val ), IExprImage( img ) );
+    }
 
-	/*
-		Image - Image
-	 */
-	inline IExprBinary<IExprImage,IExprImage,IEXPR_SUB> operator-( const Image& img1, const Image& img2 )
-	{
-		return IExprBinary<IExprImage, IExprImage, IEXPR_SUB>( IExprImage( img1), IExprImage( img2 ) );
-	}
+    inline IExprBinary<IExprImage,IExprScalar,IEXPR_DIV> operator/( const Image& img, const float val )
+    {
+        return IExprBinary<IExprImage,IExprScalar,IEXPR_DIV>( IExprImage( img ), IExprScalar( val ) );
+    }
 
-	/*
-		Image * Image
-	 */
-	inline IExprBinary<IExprImage,IExprImage,IEXPR_MUL> operator*( const Image& img1, const Image& img2 )
-	{
-		return IExprBinary<IExprImage, IExprImage, IEXPR_MUL>( IExprImage( img1), IExprImage( img2 ) );
-	}
+    /*
+        Image + Image
+     */
+    inline IExprBinary<IExprImage,IExprImage,IEXPR_ADD> operator+( const Image& img1, const Image& img2 )
+    {
+        return IExprBinary<IExprImage, IExprImage, IEXPR_ADD>( IExprImage( img1), IExprImage( img2 ) );
+    }
 
-	/*
-		( Expr + float ) + float -> Expr + float
-	 */
+    /*
+        Image - Image
+     */
+    inline IExprBinary<IExprImage,IExprImage,IEXPR_SUB> operator-( const Image& img1, const Image& img2 )
+    {
+        return IExprBinary<IExprImage, IExprImage, IEXPR_SUB>( IExprImage( img1), IExprImage( img2 ) );
+    }
 
-	template<typename T1>
-	inline IExprBinary<T1,IExprScalar,IEXPR_ADD> operator+( const IExprBinary<T1,IExprScalar,IEXPR_ADD>& expr1, const float val )
-	{
-		return IExprBinary<T1,IExprScalar,IEXPR_ADD>( expr1.op1, IExprScalar( expr1.op2.value + val ) );
-	}
+    /*
+        Image * Image
+     */
+    inline IExprBinary<IExprImage,IExprImage,IEXPR_MUL> operator*( const Image& img1, const Image& img2 )
+    {
+        return IExprBinary<IExprImage, IExprImage, IEXPR_MUL>( IExprImage( img1), IExprImage( img2 ) );
+    }
 
-	/*
-		( Expr + float ) - float -> Expr + float
-	 */
+    /*
+        ( Expr + float ) + float -> Expr + float
+     */
 
-	template<typename T1>
-	inline IExprBinary<T1,IExprScalar,IEXPR_ADD> operator-( const IExprBinary<T1,IExprScalar,IEXPR_ADD>& expr1, const float val )
-	{
-		return IExprBinary<T1,IExprScalar,IEXPR_ADD>( expr1.op1, IExprScalar( expr1.op2.value - val ) );
-	}
+    template<typename T1>
+    inline IExprBinary<T1,IExprScalar,IEXPR_ADD> operator+( const IExprBinary<T1,IExprScalar,IEXPR_ADD>& expr1, const float val )
+    {
+        return IExprBinary<T1,IExprScalar,IEXPR_ADD>( expr1.op1, IExprScalar( expr1.op2.value + val ) );
+    }
 
+    /*
+        ( Expr + float ) - float -> Expr + float
+     */
 
-	/*
-		( Expr * float ) * float -> Expr * float
-	 */
+    template<typename T1>
+    inline IExprBinary<T1,IExprScalar,IEXPR_ADD> operator-( const IExprBinary<T1,IExprScalar,IEXPR_ADD>& expr1, const float val )
+    {
+        return IExprBinary<T1,IExprScalar,IEXPR_ADD>( expr1.op1, IExprScalar( expr1.op2.value - val ) );
+    }
 
-	template<typename T1>
-	inline IExprBinary<T1,IExprScalar,IEXPR_MUL> operator*( const IExprBinary<T1,IExprScalar,IEXPR_MUL>& expr1, const float val )
-	{
-		return IExprBinary<T1,IExprScalar,IEXPR_MUL>( expr1.op1, IExprScalar( expr1.op2.value * val ) );
-	}
+    /*
+        ( Expr * float ) * float -> Expr * float
+     */
 
-	/*
-		( Expr1 + float ) + Expr2 -> ( Expr1 + Expr2  ) + float
-	 */
-	template<typename T1, typename T2>
-	inline IExprBinary<IExprBinary<T1,typename IExprTypeFromT<T2>::T,IEXPR_ADD>, IExprScalar, IEXPR_ADD> operator+( const IExprBinary<T1,IExprScalar,IEXPR_ADD>& expr1, const T2& expr2 )
-	{
+    template<typename T1>
+    inline IExprBinary<T1,IExprScalar,IEXPR_MUL> operator*( const IExprBinary<T1,IExprScalar,IEXPR_MUL>& expr1, const float val )
+    {
+        return IExprBinary<T1,IExprScalar,IEXPR_MUL>( expr1.op1, IExprScalar( expr1.op2.value * val ) );
+    }
 
-		return IExprBinary<IExprBinary<T1,typename IExprTypeFromT<T2>::T,IEXPR_ADD>, IExprScalar, IEXPR_ADD>( IExprBinary<T1,typename IExprTypeFromT<T2>::T,IEXPR_ADD>( expr1.op1, typename IExprTypeFromT<T2>::T( expr2 ) ), expr1.op2 );
-	}
+    /*
+        ( Expr1 + float ) + Expr2 -> ( Expr1 + Expr2  ) + float
+     */
+    template<typename T1, typename T2>
+    inline IExprBinary<IExprBinary<T1,typename IExprTypeFromT<T2>::T,IEXPR_ADD>, IExprScalar, IEXPR_ADD> operator+( const IExprBinary<T1,IExprScalar,IEXPR_ADD>& expr1, const T2& expr2 )
+    {
 
-	/*
-		General: ( Expr1 + X )
-	 */
-	template<typename T1, typename T2, IExprType op, typename T3>
-	inline IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_ADD> operator+( const IExprBinary<T1,T2,op>& expr1, const T3& expr2 )
-	{
-		return IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_ADD>( expr1, typename IExprTypeFromT<T3>::T( expr2 ) );
-	}
+        return IExprBinary<IExprBinary<T1,typename IExprTypeFromT<T2>::T,IEXPR_ADD>, IExprScalar, IEXPR_ADD>( IExprBinary<T1,typename IExprTypeFromT<T2>::T,IEXPR_ADD>( expr1.op1, typename IExprTypeFromT<T2>::T( expr2 ) ), expr1.op2 );
+    }
 
-	/*
-		General: ( Expr1 - X )
-	 */
-	template<typename T1, typename T2, IExprType op, typename T3>
-	inline IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_SUB> operator-( const IExprBinary<T1,T2,op>& expr1, const T3& expr2 )
-	{
-		return IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_SUB>( expr1, typename IExprTypeFromT<T3>::T( expr2 ) );
-	}
+    /*
+        General: ( Expr1 + X )
+     */
+    template<typename T1, typename T2, IExprType op, typename T3>
+    inline IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_ADD> operator+( const IExprBinary<T1,T2,op>& expr1, const T3& expr2 )
+    {
+        return IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_ADD>( expr1, typename IExprTypeFromT<T3>::T( expr2 ) );
+    }
 
-	/*
-		General: ( Expr1 * X )
-	 */
-	template<typename T1, typename T2, IExprType op, typename T3>
-	inline IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_MUL> operator*( const IExprBinary<T1,T2,op>& expr1, const T3& expr2 )
-	{
-		return IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_MUL>( expr1, typename IExprTypeFromT<T3>::T( expr2 ) );
-	}
+    /*
+        General: ( Expr1 - X )
+     */
+    template<typename T1, typename T2, IExprType op, typename T3>
+    inline IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_SUB> operator-( const IExprBinary<T1,T2,op>& expr1, const T3& expr2 )
+    {
+        return IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_SUB>( expr1, typename IExprTypeFromT<T3>::T( expr2 ) );
+    }
 
-	/*
-		FIXME: seems to be the only way to put it here ...
-	 */
-	template<typename T1, typename T2, IExprType op>
-	inline Image& Image::operator=( const IExprBinary<T1,T2,op>& expr )
-	{
-		expr.eval( *this );
-		return *this;
-	}
+    /*
+        General: ( Expr1 * X )
+     */
+    template<typename T1, typename T2, IExprType op, typename T3>
+    inline IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_MUL> operator*( const IExprBinary<T1,T2,op>& expr1, const T3& expr2 )
+    {
+        return IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_MUL>( expr1, typename IExprTypeFromT<T3>::T( expr2 ) );
+    }
 
+    /*
+        General: Expr1 / X
+     */
+    template<typename T1, typename T2, IExprType op, typename T3>
+    inline IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_DIV> operator/( const IExprBinary<T1,T2,op>& expr1, const T3& expr2 )
+    {
+        return IExprBinary<IExprBinary<T1,T2,op>,typename IExprTypeFromT<T3>::T,IEXPR_DIV>( expr1, typename IExprTypeFromT<T3>::T( expr2 ) );
+    }
+
+    template<typename T1, typename T2, typename T3, IExprType op>
+    inline IExprBinary<typename IExprTypeFromT<T1>::T,IExprBinary<T2,T3,op>,IEXPR_DIV> operator/( const T1& expr1, const IExprBinary<T2,T3,op>& expr2 )
+    {
+        return IExprBinary<typename IExprTypeFromT<T1>::T,IExprBinary<T2,T3,op>,IEXPR_DIV>( typename IExprTypeFromT<T3>::T( expr1 ), expr2 );
+    }
+
+    /*
+        FIXME: seems to be the only way to put it here ...
+     */
+    template<typename T1, typename T2, IExprType op>
+    inline Image& Image::operator=( const IExprBinary<T1,T2,op>& expr )
+    {
+        expr.eval( *this );
+        return *this;
+    }
 
 }
-
 
 #endif
