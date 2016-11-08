@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -21,9 +22,8 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
 */
-
 #ifndef CVT_CAMERACALIBRATION_H
-#define	CVT_CAMERACALIBRATION_H
+#define CVT_CAMERACALIBRATION_H
 
 #include <cvt/math/Matrix.h>
 #include <cvt/math/Vector.h>
@@ -42,9 +42,9 @@ namespace cvt
         INTRINSICS = ( 1 << 0 ),
         EXTRINSICS = ( 1 << 1 ),
         DISTORTION = ( 1 << 2 )
-	};
+    };
 
-	CVT_ENUM_TO_FLAGS( CamCalibFlagTypes, CameraCalibrationFlags )
+    CVT_ENUM_TO_FLAGS( CamCalibFlagTypes, CameraCalibrationFlags )
 
 
     class CameraCalibration : public XMLSerializable
@@ -59,13 +59,12 @@ namespace cvt
         const Vector2f & tangentialDistortion() const { return _tangential; }
         const Matrix4f & projectionMatrix()     const { return _projection; }
         const CameraCalibrationFlags & flags()  const { return _flags; }
-		const Vector2f	 center()				const { return Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] ); }
-		const Vector2f	 focalLength()			const { return Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] ); }
-		size_t			 width()				const { return _width; }
-		size_t			 height()				const { return _height; }
-		void			 setWidth( size_t w )		  { _width = w; }
-		void			 setHeight( size_t h )		  { _height = h; }
-
+        const Vector2f   center()               const { return Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] ); }
+        const Vector2f   focalLength()          const { return Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] ); }
+        size_t           width()                const { return _width; }
+        size_t           height()               const { return _height; }
+        void             setWidth( size_t w )         { _width = w; }
+        void             setHeight( size_t h )        { _height = h; }
 
         /**
          * set the extrinsics of the camera
@@ -76,21 +75,21 @@ namespace cvt
         void setIntrinsics( float fx, float fy, float cx, float cy, float alpha = 0.0f );
         void setDistortion( const Vector3f & radial, const Vector2f & tangential );
 
-		Vector2f undistortPoint( const Vector2f& in ) const;
-		Vector2f inverseUndistortPoint( const Vector2f& in ) const;
-		Vector2f inverseUndistortPoint2( const Vector2f& in ) const;
+        Vector2f undistortPoint( const Vector2f& in ) const;
+        Vector2f inverseUndistortPoint( const Vector2f& in ) const;
+        Vector2f inverseUndistortPoint2( const Vector2f& in ) const;
 
-		void calcUndistortRects( Rectf& min, Rectf& max, const Rectf& input ) const;
+        void calcUndistortRects( Rectf& min, Rectf& max, const Rectf& input ) const;
 
         bool hasExtrinsics() const { return ( _flags & EXTRINSICS ); }
         bool hasIntrinsics() const { return ( _flags & INTRINSICS ); }
         bool hasDistortion() const { return ( _flags & DISTORTION ); }
 
-		void load( const String& file );
-		void save( const String& file );
+        void load( const String& file );
+        void save( const String& file ) const;
 
         // de-/serialization interface
-        void	 deserialize( XMLNode* node );
+        void     deserialize( XMLNode* node );
         XMLNode* serialize() const;
 
       private:
@@ -102,8 +101,8 @@ namespace cvt
         Vector3f                _radial;
         Vector2f                _tangential;
 
-		size_t					_width;
-		size_t					_height;
+        size_t                  _width;
+        size_t                  _height;
 
         CameraCalibrationFlags  _flags;
 
@@ -111,10 +110,10 @@ namespace cvt
 
     };
 
-	inline CameraCalibration::CameraCalibration() :
-		XMLSerializable(),
-		_width( 0 ),
-		_height( 0 )
+    inline CameraCalibration::CameraCalibration() :
+        XMLSerializable(),
+        _width( 0 ),
+        _height( 0 )
     {
         _intrinsics.setIdentity();
         _extrinsics.setIdentity();
@@ -124,50 +123,50 @@ namespace cvt
     }
 
     inline CameraCalibration::CameraCalibration( const CameraCalibration & other ) :
-		XMLSerializable(),
+        XMLSerializable(),
         _intrinsics( other._intrinsics ),
         _extrinsics( other._extrinsics ),
         _projection( other._projection ),
         _radial( other._radial ),
         _tangential( other._tangential ),
-		_width( other._width ),
-		_height( other._height ),
+        _width( other._width ),
+        _height( other._height ),
         _flags( other._flags )
     {
     }
 
-	inline void CameraCalibration::load( const String& filename )
-	{
-		XMLDocument xmlDoc;
-		xmlDoc.load( filename );
+    inline void CameraCalibration::load( const String& filename )
+    {
+        XMLDocument xmlDoc;
+        xmlDoc.load( filename );
 
-		XMLNode* node = xmlDoc.nodeByName( "CameraCalibration" );
-		this->deserialize( node );
-	}
+        XMLNode* node = xmlDoc.nodeByName( "CameraCalibration" );
+        this->deserialize( node );
+    }
 
-	inline void CameraCalibration::save( const String& filename )
-	{
-		XMLDocument xmlDoc;
-		xmlDoc.addNode( this->serialize() );
-		xmlDoc.save( filename );
-	}
+    inline void CameraCalibration::save( const String& filename ) const
+    {
+        XMLDocument xmlDoc;
+        xmlDoc.addNode( this->serialize() );
+        xmlDoc.save( filename );
+    }
 
     inline XMLNode* CameraCalibration::serialize() const
     {
         XMLNode * root;
 
         root = new XMLElement( "CameraCalibration" );
-		cvt::String val;
+        cvt::String val;
 
-		XMLElement* wElement = new XMLElement( "Width" );
-		val.sprintf( "%lu", _width );
-		wElement->addChild( new XMLText( val ) );
-		root->addChild( wElement );
+        XMLElement* wElement = new XMLElement( "Width" );
+        val.sprintf( "%lu", _width );
+        wElement->addChild( new XMLText( val ) );
+        root->addChild( wElement );
 
-		val.sprintf( "%lu", _height );
-		XMLElement* hElement = new XMLElement( "Height" );
-		hElement->addChild( new XMLText( val ) );
-		root->addChild( hElement );
+        val.sprintf( "%lu", _height );
+        XMLElement* hElement = new XMLElement( "Height" );
+        hElement->addChild( new XMLText( val ) );
+        root->addChild( hElement );
 
         if( hasExtrinsics() ){
             XMLElement * element = new XMLElement( "Extrinsics" );
@@ -203,17 +202,17 @@ namespace cvt
             throw CVTException( "this is not a camera calibration node" );
         XMLNode * n;
 
-		n = node->childByName( "Width" );
-		if( n != NULL ){
-			size_t v = n->child( 0 )->value().toInteger();
-			setWidth( v );
-		}
+        n = node->childByName( "Width" );
+        if( n != NULL ){
+            size_t v = n->child( 0 )->value().toInteger();
+            setWidth( v );
+        }
 
-		n = node->childByName( "Height" );
-		if( n != NULL ){
-			size_t v = n->child( 0 )->value().toInteger();
-			setHeight( v );
-		}
+        n = node->childByName( "Height" );
+        if( n != NULL ){
+            size_t v = n->child( 0 )->value().toInteger();
+            setHeight( v );
+        }
 
         n = node->childByName( "Extrinsics" );
         if( n != NULL ){
@@ -233,9 +232,9 @@ namespace cvt
             Vector3f radial;
             Vector2f tangential;
 
-			/* to make the compiler happy */
-			radial.setZero();
-			tangential.setZero();
+            /* to make the compiler happy */
+            radial.setZero();
+            tangential.setZero();
 
             for( size_t i = 0; i < n->childSize(); i++ ){
                 child = n->child( i );
@@ -284,7 +283,6 @@ namespace cvt
         updateProjectionMatrix();
     }
 
-
     inline void CameraCalibration::setDistortion( const Vector3f & radial, const Vector2f & tangential )
     {
         _flags |= DISTORTION;
@@ -292,195 +290,180 @@ namespace cvt
         _tangential = tangential;
     }
 
-	inline Vector2f CameraCalibration::undistortPoint( const Vector2f& in ) const
-	{
-		Vector2f out;
-		Vector2f p;
-		Vector2f c = Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] );
-		Vector2f f = Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] );
-		Vector2f tangential =  _tangential;
-		Vector3f radial = _radial;
-		p = ( in - c );
-		p /= f;
-		float r2 = p.lengthSqr();
-		float r4 = Math::sqr( r2 );
-		float r6 = r2 * r4;
-		float poly = ( 1.0f + radial[ 0 ] * r2 + radial[ 1 ] * r4 + radial[ 2 ] * r6 );
-		float xy2 = 2.0f * p.x * p.y;
-		out.x = f.x * ( p.x * poly + xy2 * tangential[ 0 ] + tangential[ 1 ] * ( r2 + 2.0f * p.x * p.x ) ) + c.x;
-		out.y = f.y * ( p.y * poly + xy2 * tangential[ 1 ] + tangential[ 0 ] * ( r2 + 2.0f * p.y * p.y ) ) + c.y;
-		return out;
-	}
+    inline Vector2f CameraCalibration::undistortPoint( const Vector2f& in ) const
+    {
+        Vector2f out;
+        Vector2f p;
+        Vector2f c = Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] );
+        Vector2f f = Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] );
+        Vector2f tangential =  _tangential;
+        Vector3f radial = _radial;
+        p = ( in - c );
+        p /= f;
+        float r2 = p.lengthSqr();
+        float r4 = Math::sqr( r2 );
+        float r6 = r2 * r4;
+        float poly = ( 1.0f + radial[ 0 ] * r2 + radial[ 1 ] * r4 + radial[ 2 ] * r6 );
+        float xy2 = 2.0f * p.x * p.y;
+        out.x = f.x * ( p.x * poly + xy2 * tangential[ 0 ] + tangential[ 1 ] * ( r2 + 2.0f * p.x * p.x ) ) + c.x;
+        out.y = f.y * ( p.y * poly + xy2 * tangential[ 1 ] + tangential[ 0 ] * ( r2 + 2.0f * p.y * p.y ) ) + c.y;
+        return out;
+    }
 
-	inline Vector2f CameraCalibration::inverseUndistortPoint( const Vector2f& in ) const
-	{
-		Vector2f c = Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] );
-		Vector2f f = Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] );
-		Vector2f p = ( in - c );
-		p /= f;
-		Vector2f lambda( 10e5f, 10e5f);
+    inline Vector2f CameraCalibration::inverseUndistortPoint( const Vector2f& in ) const
+    {
+        Vector2f c = Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] );
+        Vector2f f = Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] );
+        Vector2f p = ( in - c );
+        p /= f;
+        Vector2f lambda( 10e5f, 10e5f);
 
-		float r2 = p.lengthSqr();
-		float r4 = Math::sqr( r2 );
-		float r6 = r2 * r4;
+        float r2 = p.lengthSqr();
+        float r4 = Math::sqr( r2 );
+        float r6 = r2 * r4;
 
-		Polynomialf radial( r6 * _radial[ 2 ], 0.0f, r4 * _radial[ 1 ], 0.0f, r2 * _radial[ 0 ], 0.0f, 1.0f, -1.0f  );
-		std::vector<Complexf> roots;
+        Polynomialf radial( r6 * _radial[ 2 ], 0.0f, r4 * _radial[ 1 ], 0.0f, r2 * _radial[ 0 ], 0.0f, 1.0f, -1.0f  );
+        std::vector<Complexf> roots;
 
-		Polynomialf tangentialx( ( _tangential[ 0 ] * 2.0f * p.y + _tangential[ 1 ] * ( ( p.y * p.y ) / p.x + 3.0f * p.x ) ), 0.0f, 0.0f );
-		Polynomialf all = radial + tangentialx;
-		all.roots( roots );
-		for( size_t i = 0; i < roots.size(); i++ ) {
-			if( roots[ i ].im == 0.0f ) {
-				if( Math::abs( roots[ i ].re - 1 ) < Math::abs( lambda.x - 1 ) )
-					lambda.x = roots[ i ].re;
-			}
-		}
+        Polynomialf tangentialx( ( _tangential[ 0 ] * 2.0f * p.y + _tangential[ 1 ] * ( ( p.y * p.y ) / p.x + 3.0f * p.x ) ), 0.0f, 0.0f );
+        Polynomialf all = radial + tangentialx;
+        all.roots( roots );
+        for( size_t i = 0; i < roots.size(); i++ ) {
+            if( roots[ i ].im == 0.0f ) {
+                if( Math::abs( roots[ i ].re - 1 ) < Math::abs( lambda.x - 1 ) )
+                    lambda.x = roots[ i ].re;
+            }
+        }
 
-		Polynomialf tangentialy( ( _tangential[ 1 ] * 2.0f * p.x + _tangential[ 0 ] * ( ( p.x * p.x ) / p.y + 3.0f * p.y ) ), 0.0f, 0.0f );
-		all = radial + tangentialy;
-		all.roots( roots );
-		for( size_t i = 0; i < roots.size(); i++ ) {
-			if( roots[ i ].im == 0.0f ) {
-				if( Math::abs( roots[ i ].re - 1 ) < Math::abs( lambda.y - 1 ) )
-					lambda.y = roots[ i ].re;
-			}
-		}
+        Polynomialf tangentialy( ( _tangential[ 1 ] * 2.0f * p.x + _tangential[ 0 ] * ( ( p.x * p.x ) / p.y + 3.0f * p.y ) ), 0.0f, 0.0f );
+        all = radial + tangentialy;
+        all.roots( roots );
+        for( size_t i = 0; i < roots.size(); i++ ) {
+            if( roots[ i ].im == 0.0f ) {
+                if( Math::abs( roots[ i ].re - 1 ) < Math::abs( lambda.y - 1 ) )
+                    lambda.y = roots[ i ].re;
+            }
+        }
 
-#if 0 
-		p = in - c;
-		p.x *= lambda.x;
-		p.y *= lambda.y;
-		p += c;
-		p = undistortPoint( p );
+        p = in - c;
+        p.x *= lambda.x;
+        p.y *= lambda.y;
+        return p + c;
+    }
 
-		std::cout << in << std::endl;
-		std::cout << p << std::endl;
-		std::cout << p - in << std::endl;
-		std::cout << lambda << std::endl;
-		std::cout << std::endl;
-#endif
+    inline Vector2f CameraCalibration::inverseUndistortPoint2( const Vector2f& in ) const
+    {
+        Vector2f c = Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] );
+        Vector2f f = Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] );
+        Vector2f p = ( in - c );
+        p /= f;
+        Vector2f x = p;
 
-		p = in - c;
-		p.x *= lambda.x;
-		p.y *= lambda.y;
-		return p + c;
-	}
+        for( int kk = 0; kk < 20; kk++ ) {
+            float r2 = x.lengthSqr();
+            float r4 = Math::sqr( r2 );
+            float r6 = r2 * r4;
 
-	inline Vector2f CameraCalibration::inverseUndistortPoint2( const Vector2f& in ) const
-	{
-		Vector2f c = Vector2f( _intrinsics[ 0 ][ 2 ], _intrinsics[ 1 ][ 2 ] );
-		Vector2f f = Vector2f( _intrinsics[ 0 ][ 0 ], _intrinsics[ 1 ][ 1 ] );
-		Vector2f p = ( in - c );
-		p /= f;
-		Vector2f x = p;
+            float radial =  1.0f + _radial[ 0 ] * r2 + _radial[ 1 ] * r4 + _radial[ 2 ] * r6;
+            Vector2f dx( 2.0f * _tangential[ 0 ] * x.x * x.y + _tangential[ 1 ]* ( r2 + 2.0f * Math::sqr( x.x ) ),
+                        _tangential[ 0 ] * (r2 + 2.0f * Math::sqr( x.y ) ) + 2.0f * _tangential[ 1 ] * x.x * x.y );
+            x = ( p - dx )/radial;
+        }
 
-		for( int kk = 0; kk < 20; kk++ ) {
-			float r2 = x.lengthSqr();
-			float r4 = Math::sqr( r2 );
-			float r6 = r2 * r4;
+        return x.cmul( f ) + c;
+    }
 
-			float radial =  1.0f + _radial[ 0 ] * r2 + _radial[ 1 ] * r4 + _radial[ 2 ] * r6;
-			Vector2f dx( 2.0f * _tangential[ 0 ] * x.x * x.y + _tangential[ 1 ]* ( r2 + 2.0f * Math::sqr( x.x ) ),
-						_tangential[ 0 ] * (r2 + 2.0f * Math::sqr( x.y ) ) + 2.0f * _tangential[ 1 ] * x.x * x.y );
-			x = ( p - dx )/radial;
-		}
+    struct FixedXinverseUndistort {
+        FixedXinverseUndistort( float x, const CameraCalibration* cam ) : _pt( x, 0 ), _cam( cam ) {}
 
-		return x.cmul( f ) + c;
-	}
+        float operator()( float y )
+        {
+            _pt.y = y;
+            Vector2f ret = _cam->inverseUndistortPoint( _pt );
+            return ret.x;
+        }
 
+        Vector2f _pt;
+        const CameraCalibration* _cam;
+    };
 
-	struct FixedXinverseUndistort {
-		FixedXinverseUndistort( float x, const CameraCalibration* cam ) : _pt( x, 0 ), _cam( cam ) {}
+    struct FixedYinverseUndistort {
+        FixedYinverseUndistort( float y, const CameraCalibration* cam ) : _pt( 0, y ), _cam( cam ) {}
 
-		float operator()( float y )
-		{
-			_pt.y = y;
-			Vector2f ret = _cam->inverseUndistortPoint( _pt );
-			return ret.x;
-		}
+        float operator()( float x )
+        {
+            _pt.x = x;
+            Vector2f ret = _cam->inverseUndistortPoint( _pt );
+            return ret.y;
+        }
 
-		Vector2f _pt;
-		const CameraCalibration* _cam;
-	};
+        Vector2f _pt;
+        const CameraCalibration* _cam;
+    };
 
-	struct FixedYinverseUndistort {
-		FixedYinverseUndistort( float y, const CameraCalibration* cam ) : _pt( 0, y ), _cam( cam ) {}
+    inline void CameraCalibration::calcUndistortRects( Rectf& min, Rectf& max, const Rectf& input ) const
+    {
+        Vector2f pt;
+        float x1min, x2min, y1min, y2min;
 
-		float operator()( float x )
-		{
-			_pt.x = x;
-			Vector2f ret = _cam->inverseUndistortPoint( _pt );
-			return ret.y;
-		}
+        max = input;
 
-		Vector2f _pt;
-		const CameraCalibration* _cam;
-	};
+        pt = inverseUndistortPoint( Vector2f( input.x, input.y ) );
+        max.join( pt );
 
-	inline void CameraCalibration::calcUndistortRects( Rectf& min, Rectf& max, const Rectf& input ) const
-	{
-		Vector2f pt;
-		float x1min, x2min, y1min, y2min;
+        pt = inverseUndistortPoint( Vector2f( input.x + input.width, input.y ) );
+        max.join( pt );
 
-		max = input;
+        pt = inverseUndistortPoint( Vector2f( input.x + input.width, input.y + input.height ) );
+        max.join( pt );
 
-		pt = inverseUndistortPoint( Vector2f( input.x, input.y ) );
-		max.join( pt );
+        pt = inverseUndistortPoint( Vector2f( input.x, input.y + input.height ) );
+        max.join( pt );
 
-		pt = inverseUndistortPoint( Vector2f( input.x + input.width, input.y ) );
-		max.join( pt );
+        x1min = max.x;
+        x2min = max.x + max.width;
+        y1min = max.y;
+        y2min = max.y + max.height;
 
-		pt = inverseUndistortPoint( Vector2f( input.x + input.width, input.y + input.height ) );
-		max.join( pt );
+        FixedXinverseUndistort left( input.x, this );
+        FixedXinverseUndistort right( input.x + input.width, this );
+        FixedYinverseUndistort top( input.y, this );
+        FixedYinverseUndistort bottom( input.y + input.height, this );
+        float tmp;
 
-		pt = inverseUndistortPoint( Vector2f( input.x, input.y + input.height ) );
-		max.join( pt );
+        if( _radial[ 0 ] < 0 ) { // barrel distortion
+            tmp = Math::lineSearchMaxGolden( input.y, input.y + input.height - 1, left );
+            pt = inverseUndistortPoint( Vector2f( input.x, tmp ) );
+            x1min = Math::max( x1min, pt.x );
+            tmp = Math::lineSearchMinGolden( input.y, input.y + input.height - 1, right );
+            pt = inverseUndistortPoint( Vector2f(input.x + input.width, tmp ) );
+            x2min = Math::min( x2min, pt.x );
+            tmp = Math::lineSearchMaxGolden( input.x, input.x + input.width - 1, top );
+            pt = inverseUndistortPoint( Vector2f( tmp, input.y ) );
+            y1min = Math::max( y1min, pt.y );
+            tmp = Math::lineSearchMinGolden( input.x, input.x + input.width - 1, bottom );
+            pt = inverseUndistortPoint( Vector2f( tmp, input.y + input.height ) );
+            y2min = Math::min( y2min, pt.y );
+        } else { // pincushion
+            tmp = Math::lineSearchMinGolden( input.y, input.y + input.height - 1, left );
+            pt = inverseUndistortPoint( Vector2f( input.x, tmp ) );
+            max.join( pt );
+            tmp = Math::lineSearchMaxGolden( input.y, input.y + input.height - 1, right );
+            pt = inverseUndistortPoint( Vector2f(input.x + input.width, tmp ) );
+            max.join( pt );
+            tmp = Math::lineSearchMinGolden( input.x, input.x + input.width - 1, top );
+            pt = inverseUndistortPoint( Vector2f( tmp, input.y ) );
+            max.join( pt );
+            tmp = Math::lineSearchMaxGolden( input.x, input.x + input.width - 1, bottom );
+            pt = inverseUndistortPoint( Vector2f( tmp, input.y + input.height ) );
+            max.join( pt );
+        }
 
-		x1min = max.x;
-		x2min = max.x + max.width;
-		y1min = max.y;
-		y2min = max.y + max.height;
-
-		FixedXinverseUndistort left( input.x, this );
-		FixedXinverseUndistort right( input.x + input.width, this );
-		FixedYinverseUndistort top( input.y, this );
-		FixedYinverseUndistort bottom( input.y + input.height, this );
-		float tmp;
-
-		if( _radial[ 0 ] < 0 ) { // barrel distortion
-			tmp = Math::lineSearchMaxGolden( input.y, input.y + input.height - 1, left );
-			pt = inverseUndistortPoint( Vector2f( input.x, tmp ) );
-			x1min = Math::max( x1min, pt.x );
-			tmp = Math::lineSearchMinGolden( input.y, input.y + input.height - 1, right );
-			pt = inverseUndistortPoint( Vector2f(input.x + input.width, tmp ) );
-			x2min = Math::min( x2min, pt.x );
-			tmp = Math::lineSearchMaxGolden( input.x, input.x + input.width - 1, top );
-			pt = inverseUndistortPoint( Vector2f( tmp, input.y ) );
-			y1min = Math::max( y1min, pt.y );
-			tmp = Math::lineSearchMinGolden( input.x, input.x + input.width - 1, bottom );
-			pt = inverseUndistortPoint( Vector2f( tmp, input.y + input.height ) );
-			y2min = Math::min( y2min, pt.y );
-		} else { // pincushion
-			tmp = Math::lineSearchMinGolden( input.y, input.y + input.height - 1, left );
-			pt = inverseUndistortPoint( Vector2f( input.x, tmp ) );
-			max.join( pt );
-			tmp = Math::lineSearchMaxGolden( input.y, input.y + input.height - 1, right );
-			pt = inverseUndistortPoint( Vector2f(input.x + input.width, tmp ) );
-			max.join( pt );
-			tmp = Math::lineSearchMinGolden( input.x, input.x + input.width - 1, top );
-			pt = inverseUndistortPoint( Vector2f( tmp, input.y ) );
-			max.join( pt );
-			tmp = Math::lineSearchMaxGolden( input.x, input.x + input.width - 1, bottom );
-			pt = inverseUndistortPoint( Vector2f( tmp, input.y + input.height ) );
-			max.join( pt );
-		}
-
-		min.x = x1min;
-		min.y = y1min;
-		min.width = x2min - x1min;
-		min.height = y2min - y1min;
-	}
+        min.x = x1min;
+        min.y = y1min;
+        min.width = x2min - x1min;
+        min.height = y2min - y1min;
+    }
 
     inline void CameraCalibration::updateProjectionMatrix()
     {
@@ -493,11 +476,8 @@ namespace cvt
         _projection[ 3 ][ 0 ] = _projection[ 3 ][ 1 ] = _projection[ 3 ][ 2 ] = 0.0f;
         _projection[ 3 ][ 3 ] = 1.0f;
 
-
         if( hasExtrinsics() )
             _projection *= _extrinsics;
     }
 }
-
 #endif
-
