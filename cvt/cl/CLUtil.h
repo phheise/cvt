@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +22,6 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
 */
-
 #ifndef CVT_CLUTIL_H
 #define CVT_CLUTIL_H
 
@@ -30,28 +30,29 @@
 #include <cvt/util/String.h>
 
 #define CLUTIL_GETINFOSTRING( name, info, clobj, clobjinfofunc ) \
-	void name( String& string ) const\
-{	\
-	cl_int err; \
-	size_t size; \
-	err = clobjinfofunc( clobj, info, 0, NULL, &size ); \
-	if( err != CL_SUCCESS ) \
-		throw CLException( err ); \
-	string.resize( size ); \
-	err = clobjinfofunc( clobj, info, size, &string[ 0 ], 0 ); \
-	if( err != CL_SUCCESS ) \
-		throw CLException( err ); \
+    void name( String& string ) const\
+{   \
+    cl_int err; \
+    size_t size; \
+    err = clobjinfofunc( clobj, info, 0, NULL, &size ); \
+    if( err != CL_SUCCESS ) \
+        throw CLException( err ); \
+    string.resize( size ); \
+    err = clobjinfofunc( clobj, info, size, &string[ 0 ], 0 ); \
+    string.updateLength(); \
+    if( err != CL_SUCCESS ) \
+        throw CLException( err ); \
 }
 
 #define CLUTIL_GETINFOTYPE( name, info, type, clobj, clobjinfofunc ) \
-	type name() const\
-{	\
-	cl_int err; \
-	type ret; \
-	err = clobjinfofunc( clobj, info, sizeof( type ), &ret, NULL ); \
-	if( err != CL_SUCCESS ) \
-		throw CLException( err ); \
-	return ret; \
+    type name() const\
+{   \
+    cl_int err; \
+    type ret; \
+    err = clobjinfofunc( clobj, info, sizeof( type ), &ret, NULL ); \
+    if( err != CL_SUCCESS ) \
+        throw CLException( err ); \
+    return ret; \
 }
 
 #endif
