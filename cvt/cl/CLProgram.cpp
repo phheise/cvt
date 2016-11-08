@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -27,21 +28,29 @@
 
 namespace cvt {
 
-	CLProgram::CLProgram( const CLContext& context, const char* prog )
-	{
-		cl_int err;
-		_object = ::clCreateProgramWithSource( context, 1, &prog, NULL, &err );
-		if( err != CL_SUCCESS )
-			throw CLException( err );
-	}
+    CLProgram::CLProgram( const CLContext& context, const char* prog )
+    {
+        cl_int err;
+        _object = ::clCreateProgramWithSource( context, 1, &prog, NULL, &err );
+        if( err != CL_SUCCESS )
+            throw CLException( err );
+    }
 
-	CLProgram::CLProgram( const CLContext& context, const String& prog )
-	{
-		cl_int err;
-		const char* str = prog.c_str();
-		_object = ::clCreateProgramWithSource( context, 1, &str, NULL, &err );
-		if( err != CL_SUCCESS )
-			throw CLException( err );
-	}
+    CLProgram::CLProgram( const CLContext& context, const char** strings, int count )
+    {
+        cl_int err;
+        _object = ::clCreateProgramWithSource( context, count, strings, NULL, &err );
+        if( err != CL_SUCCESS )
+            throw CLException( err );
+    }
+
+    CLProgram::CLProgram( const CLContext& context, const String& prog )
+    {
+        cl_int err;
+        const char* str = prog.c_str();
+        _object = ::clCreateProgramWithSource( context, 1, &str, NULL, &err );
+        if( err != CL_SUCCESS )
+            throw CLException( err );
+    }
 
 }
