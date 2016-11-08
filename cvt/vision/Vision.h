@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -21,16 +22,8 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
 */
-
-/*
- * File:   Vision.h
- * Author: sebi
- *
- * Created on August 9, 2011, 10:35 AM
- */
-
 #ifndef CVT_VISION_H
-#define	CVT_VISION_H
+#define CVT_VISION_H
 
 #include <cvt/math/Matrix.h>
 #include <cvt/gfx/Image.h>
@@ -90,12 +83,12 @@ namespace cvt
                                  size_t n );
 
         /**
-         *	@brief	Construct fundamental matrix (cam 0 to cam1) out of calibration data
-         *	@param	f	output fundamental matrix
-         *	@param	K0	intrinsics of camera 0
-         *	@param	T0	extrinsics of camera 0 (cam2World)
-         *	@param	K1	intrinsics of camera 1
-         *	@param	T1	extrinsics of camera 1 (cam2World)
+         *  @brief  Construct fundamental matrix (cam 0 to cam1) out of calibration data
+         *  @param  f   output fundamental matrix
+         *  @param  K0  intrinsics of camera 0
+         *  @param  T0  extrinsics of camera 0 (cam2World)
+         *  @param  K1  intrinsics of camera 1
+         *  @param  T1  extrinsics of camera 1 (cam2World)
          */
         template<typename T>
         static void composeFundamental( Matrix3<T>& f,
@@ -113,6 +106,21 @@ namespace cvt
         template<typename T>
         static void epipolesFundamental( Vector3<T>& e0, Vector3<T>& e1, Matrix3<T>& f );
 
+        /**
+         *  @brief  Compute the epipoles e,e' from two cameras K T0 and K' T1
+         *  @param  f   output fundamental matrix
+         *  @param  K0  intrinsics of camera 0
+         *  @param  T0  extrinsics of camera 0 (cam2World)
+         *  @param  K1  intrinsics of camera 1
+         *  @param  T1  extrinsics of camera 1 (cam2World)
+         */
+        template<typename T>
+        static void epipoles( Vector3<T>& e, Vector3<T>& eprime,
+                              const Matrix3<T>& K0,
+                              const Matrix4<T>& T0,
+                              const Matrix3<T>& K1,
+                              const Matrix4<T>& T1 );
+
         /*
           @brief  A. Fusiello, E. Trucco, and A. Verri. A compact algorithm for rectification of stereo pairs. Machine Vision and Applications, 12(1):16-22, 2000.
         */
@@ -128,39 +136,39 @@ namespace cvt
                                          const Matrix3<T>& K1,
                                          const Matrix4<T>& T1 );
 
-		/*
-		 @brief Compute homography induced by plane between two cameras.
-		 */
-		template<typename T>
-		static void planeSweepHomography( Matrix3<T>& H,
-												 const Matrix3<T>& KDst,
+        /*
+         @brief Compute homography induced by plane between two cameras.
+         */
+        template<typename T>
+        static void planeSweepHomography( Matrix3<T>& H,
+                                                 const Matrix3<T>& KDst,
                                                  const Matrix4<T>& TDst,
                                                  const Matrix3<T>& KSrc,
                                                  const Matrix4<T>& TSrc,
-												 const Vector3<T>& normal, T depth );
+                                                 const Vector3<T>& normal, T depth );
 
         /**
-         *	@brief	correct point correspondences according to fundamental constraint
-         *			using first order Sampson Approximation
-         *	@param p0			Point correspondence 0
-         *	@param p1			Point correspondence 1
-         *	@param fundamental	Fundamental Matrix: p1'Fp0 = 0
+         *  @brief  correct point correspondences according to fundamental constraint
+         *          using first order Sampson Approximation
+         *  @param p0           Point correspondence 0
+         *  @param p1           Point correspondence 1
+         *  @param fundamental  Fundamental Matrix: p1'Fp0 = 0
          */
         template<typename T>
         static void correctCorrespondencesSampson( Vector2<T>& p0,
                                                    Vector2<T>& p1,
                                                    const Matrix3<T>& fundamental );
 
-    /*	template<typename T>
+    /*  template<typename T>
         static void correctCorrespondences( Vector3<T>& p0,
                                             Vector3<T>& p1,
                                             const Matrix3<T>& essential );*/
 
         /**
-         *	@brief	project 3d point to a screen point with intrinsic matrix
-         *	@param	p2	resulting screenpoint
-         *	@param	K	intrinsic matrix
-         *	@param	p3	3d point given in camera coordinates
+         *  @brief  project 3d point to a screen point with intrinsic matrix
+         *  @param  p2  resulting screenpoint
+         *  @param  K   intrinsic matrix
+         *  @param  p3  3d point given in camera coordinates
          */
         template <class Mat3, class Vec3, class Vec2>
         static void project( Vec2 & p2, const Mat3 & K, const Vec3 & p3 );
@@ -180,13 +188,13 @@ namespace cvt
 
         static void unprojectToXYZ( PointSet3f& pts, Image& depth, const Matrix3f& K, float depthScale );
 
-		static void disparityToDepthmap( Image& depthmap, const Image& disparity, const float dispscale, const float focallength, const float baseline, const float dispthres = 0.01f );
+        static void disparityToDepthmap( Image& depthmap, const Image& disparity, const float dispscale, const float focallength, const float baseline, const float dispthres = 0.01f );
 
         /**
-         *	@brief	computes pose from homography
-         *	@param	P	matrix with pose
-         *	@param	K	intrinsic matrix
-         *	@param	H	homography matrix
+         *  @brief  computes pose from homography
+         *  @param  P   matrix with pose
+         *  @param  K   intrinsic matrix
+         *  @param  H   homography matrix
          */
         template <class Mat4, class Mat3>
         static void poseFromHomography( Mat4 &P, const Mat3 &K, const Mat3 &H )
@@ -389,8 +397,8 @@ namespace cvt
             Matrix3<T> NT = N.transpose();
             C = P1 + NT * C;
 
-            Matrix3<T> R( -cos_alpha, -sin_alpha*cos_theta,	-sin_alpha*sin_theta,
-                           sin_alpha, -cos_alpha*cos_theta,	-cos_alpha*sin_theta,
+            Matrix3<T> R( -cos_alpha, -sin_alpha*cos_theta, -sin_alpha*sin_theta,
+                           sin_alpha, -cos_alpha*cos_theta, -cos_alpha*sin_theta,
                                    0, -sin_theta,            cos_theta );
 
             R = NT * R.transpose() * Tr;
@@ -632,26 +640,41 @@ namespace cvt
             e1 = V.row( 2 );
         }
 
-		template<typename T>
-		inline void Vision::planeSweepHomography( Matrix3<T>& H,
-												 const Matrix3<T>& KDst,
+        template<typename T>
+        inline void Vision::epipoles( Vector3<T>& e, Vector3<T>& eprime,
+                                      const Matrix3<T>& K0,
+                                      const Matrix4<T>& T0,
+                                      const Matrix3<T>& K1,
+                                      const Matrix4<T>& T1 )
+        {
+           Matrix4<T> t10 = T1 * T0.inverse();
+           Matrix3<T> R = t10.toMatrix3();
+
+           e = K0 * R.transpose() * Vector3<T>( t10[ 0 ][ 3 ], t10[ 1 ][ 3 ], t10[ 2 ][ 3 ] );
+           eprime = K1 * Vector3<T>( t10[ 0 ][ 3 ], t10[ 1 ][ 3 ], t10[ 2 ][ 3 ] );
+        }
+
+
+        template<typename T>
+        inline void Vision::planeSweepHomography( Matrix3<T>& H,
+                                                 const Matrix3<T>& KDst,
                                                  const Matrix4<T>& TDst,
                                                  const Matrix3<T>& KSrc,
                                                  const Matrix4<T>& TSrc,
-												 const Vector3<T>& normal, T depth )
-		{
-			//FIXME: this is wrong
-			Vector3<T> tsrc( TSrc[ 0 ][ 3 ], TSrc[ 1 ][ 3 ], TSrc[ 2 ][ 3 ] );
-			Vector3<T> tdst( TDst[ 0 ][ 3 ], TDst[ 1 ][ 3 ], TDst[ 2 ][ 3 ] );
+                                                 const Vector3<T>& normal, T depth )
+        {
+            //FIXME: this is wrong
+            Vector3<T> tsrc( TSrc[ 0 ][ 3 ], TSrc[ 1 ][ 3 ], TSrc[ 2 ][ 3 ] );
+            Vector3<T> tdst( TDst[ 0 ][ 3 ], TDst[ 1 ][ 3 ], TDst[ 2 ][ 3 ] );
 
-			Vector3<T> tall = -tdst + tsrc;
-			/*
-				K_t * ( R_t^T * R_s + ( -R_t^T * t_t + R_s^T * t_s ) * normal/depth ) * K_s^-1
-			 */
-			Matrix3<T> outer( tall[ 0 ] / depth * normal, tall[ 1 ] / depth * normal, tall[ 2 ] / depth * normal  );
+            Vector3<T> tall = -tdst + tsrc;
+            /*
+                K_t * ( R_t^T * R_s + ( -R_t^T * t_t + R_s^T * t_s ) * normal/depth ) * K_s^-1
+             */
+            Matrix3<T> outer( tall[ 0 ] / depth * normal, tall[ 1 ] / depth * normal, tall[ 2 ] / depth * normal  );
 
-			H =  KDst * ( TDst.toMatrix3() * TSrc.toMatrix3().transpose() + outer ) * KSrc.inverse();
-		}
+            H =  KDst * ( TDst.toMatrix3() * TSrc.toMatrix3().transpose() + outer ) * KSrc.inverse();
+        }
 
         template<typename T>
         inline void Vision::stereoRectification( Matrix3<T>& K0new,
@@ -680,9 +703,9 @@ namespace cvt
             K0new[ 0 ][ 1 ] = 0.0f; // no skew
             K1new = K0new;
 
-//			Matrix3<T> K01new2 = K01new;
-//			K01new[ 0 ][ 2 ] = K0[ 0 ][ 2 ];
-//			K01new2[ 0 ][ 2 ] = K1[ 0 ][ 2 ];
+//          Matrix3<T> K01new2 = K01new;
+//          K01new[ 0 ][ 2 ] = K0[ 0 ][ 2 ];
+//          K01new2[ 0 ][ 2 ] = K1[ 0 ][ 2 ];
 
             T0new = R.toMatrix4();
             T1new = R.toMatrix4();
@@ -736,6 +759,4 @@ namespace cvt
         }
 
 }
-
 #endif
-
