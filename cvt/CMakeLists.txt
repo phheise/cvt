@@ -249,6 +249,7 @@ SET( CVT_HEADERS
    gfx/IConvolve.h
    gfx/IMapScoped.h
    gfx/IMorphological.h
+   gfx/IMinMax.h
    gfx/IThreshold.h
    gfx/ILoader.h
    gfx/ISaver.h
@@ -587,6 +588,7 @@ SET( CVT_SOURCES
     gfx/ImageOperations.cpp
     gfx/ImageTest.cpp
     gfx/IMorphological.cpp
+    gfx/IMinMax.cpp
     gfx/IThreshold.cpp
     gfx/ifilter/ROFDenoise.cpp
     gfx/ifilter/ROFFGPFilter.cpp
