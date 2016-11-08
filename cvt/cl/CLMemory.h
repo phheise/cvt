@@ -1,7 +1,7 @@
 /*
    The MIT License (MIT)
 
-   Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2011 - 2014, Philipp Heise and Sebastian Klose
    Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,60 +22,64 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
 */
-#ifndef CVT_CLBUFFER_H
-#define CVT_CLBUFFER_H
+#ifndef CVT_CLMEMORY_H
+#define CVT_CLMEMORY_H
 
-#include <cvt/cl/CLMemory.h>
+#include <cvt/cl/OpenCL.h>
+#include <cvt/cl/CLObject.h>
 #include <cvt/cl/CLUtil.h>
 
-#include <cvt/gl/GLBuffer.h>
-
 namespace cvt {
-    class CLContext;
 
-    class CLBuffer : public CLMemory
+    class CLMemory : public CLObject<cl_mem>
     {
         public:
-            CLBuffer( const CLContext& context, size_t size, cl_mem_flags flags = CL_MEM_READ_WRITE, void* host_ptr = NULL );
-            CLBuffer( size_t size, cl_mem_flags = CL_MEM_READ_WRITE );
-            CLBuffer( void* data, size_t size, cl_mem_flags = CL_MEM_READ_WRITE );
-            CLBuffer( const CLContext& context, const GLBuffer& buf, cl_mem_flags flags = CL_MEM_READ_WRITE );
-            CLBuffer( const GLBuffer& buf, cl_mem_flags = CL_MEM_READ_WRITE );
-            CLBuffer( const CLBuffer& buf ) : CLMemory( buf._object ) {};
+            CLMemory();
+            CLMemory( const cl_mem& other );
+            CLMemory( const CLMemory& other );
+            ~CLMemory();
 
             CLUTIL_GETINFOTYPE( memType, CL_MEM_TYPE, cl_mem_object_type, _object, ::clGetMemObjectInfo )
             CLUTIL_GETINFOTYPE( memFlags, CL_MEM_FLAGS, cl_mem_flags, _object, ::clGetMemObjectInfo )
+            CLUTIL_GETINFOTYPE( memSize, CL_MEM_SIZE, size_t, _object, ::clGetMemObjectInfo )
             CLUTIL_GETINFOTYPE( hostPtr, CL_MEM_HOST_PTR, void*, _object, ::clGetMemObjectInfo )
             CLUTIL_GETINFOTYPE( mapCount, CL_MEM_MAP_COUNT, cl_uint, _object, ::clGetMemObjectInfo )
+            CLUTIL_GETINFOTYPE( refCount, CL_MEM_REFERENCE_COUNT, cl_uint, _object, ::clGetMemObjectInfo )
 
-            CLContext   context() const;
-
-            void        acquireGLObject() const;
-            void        releaseGLObject() const;
-
-            size_t      size() const;
-            void        read( void* dst );
-            void        write( void* src );
-
-            void        read( void* dst, size_t size, size_t offset = 0 );
-            void        write( void* src, size_t size, size_t offset = 0 );
-
-            void*       map();
-            const void* map() const;
-            void        unmap( const void* ptr ) const;
-
+            static const char* typeToString( cl_mem_object_type type  );
         private:
-            CLBuffer( cl_mem mem ) : CLMemory( mem ) {};
-
-            CLUTIL_GETINFOTYPE( _context, CL_MEM_CONTEXT, cl_context, _object, ::clGetMemObjectInfo )
-            CLUTIL_GETINFOTYPE( _clsize, CL_MEM_SIZE, size_t, _object, ::clGetMemObjectInfo )
-
-            size_t _size;
     };
 
-    inline size_t CLBuffer::size() const
+    inline CLMemory::CLMemory()
     {
-        return _size;
+    }
+
+    inline CLMemory::CLMemory( const cl_mem& other ) : CLObject<cl_mem>( other )
+    {
+    }
+
+    inline CLMemory::CLMemory( const CLMemory& other ) : CLObject<cl_mem>( other )
+    {
+    }
+
+    inline CLMemory::~CLMemory()
+    {
+    }
+
+    inline const char* CLMemory::typeToString( cl_mem_object_type type  )
+    {
+        switch( type ) {
+            case CL_MEM_OBJECT_BUFFER: return "CL_MEM_OBJECT_BUFFER";
+            case CL_MEM_OBJECT_IMAGE2D: return "CL_MEM_OBJECT_IMAGE2D";
+            case CL_MEM_OBJECT_IMAGE3D: return "CL_MEM_OBJECT_IMAGE3D";
+#ifdef CL_VERSION_1_2
+            case CL_MEM_OBJECT_IMAGE1D: return "CL_MEM_OBJECT_IMAGE1D";
+            case CL_MEM_OBJECT_IMAGE1D_ARRAY: return "CL_MEM_OBJECT_IMAGE1D_ARRAY";
+            case CL_MEM_OBJECT_IMAGE1D_BUFFER: return "CL_MEM_OBJECT_IMAGE1D_BUFFER";
+            case CL_MEM_OBJECT_IMAGE2D_ARRAY: return "CL_MEM_OBJECT_IMAGE2D_ARRAY";
+#endif
+            default: return "Unknown";
+        }
     }
 
 }
