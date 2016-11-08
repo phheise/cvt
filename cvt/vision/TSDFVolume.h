@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -33,53 +34,85 @@
 
 namespace cvt
 {
-	class TSDFVolume
-	{
-		public:
-			TSDFVolume( const Matrix4f& gridtoworld, size_t width, size_t height, size_t depth, float truncation = 0.1f );
+    class TSDFVolume
+    {
+        public:
+            TSDFVolume( const Matrix4f& gridtoworld, size_t width, size_t height, size_t depth, float truncation = 0.1f );
+            TSDFVolume( const Vector3f& boxpt1, const Vector3f& boxpt2, float resolution, size_t voxeltruncation = 10 );
 
-			void clear( float weight = 0.0f );
-			void addDepthMap( const Matrix4f& proj, const Image& depthmap, float scale );
-			void addDepthMap( const Matrix3f& intrinsics, const Matrix4f& extrinsics, const Image& depthmap, float scale = 1.0f );
+            void clear( float value = 1.0f, float weight = 0.0f );
 
-			void rayCastDepthMap( Image& depthmap, const Matrix4f& proj, float scale );
-			void rayCastDepthMap( Image& depthmap, const Matrix3f& intrinsics, const Matrix4f& extrinsics, float scale = 1.0f );
+            void setWeight( float weight = 1.0f );
+            void scaleWeight( float scale );
 
-			size_t width() const { return _width; }
-			size_t height() const { return _height; }
-			size_t depth() const { return _depth; }
+            void addDepthMap( const Matrix4f& proj, const Image& depthmap, float scale );
+            void addDepthMap( const Matrix3f& intrinsics, const Matrix4f& extrinsics, const Image& depthmap, float scale = 1.0f );
 
-			void toSceneMesh( SceneMesh& mesh ) const;
+            void addDepthMapWeighted( const Matrix4f& proj, const Image& depthmap, float scale, const Image& weight );
+            void addDepthMapWeighted( const Matrix3f& intrinsics, const Matrix4f& extrinsics, const Image& depthmap, float scale, const Image& weight );
 
-			void sliceX( Image& img ) const;
-			void sliceY( Image& img ) const;
-			void sliceZ( Image& img ) const;
+            void addDepthMapNormalWeighted( const Matrix4f& proj, const Image& depthmap, float scale, const Image& normal );
+            void addDepthMapNormalWeighted( const Matrix3f& intrinsics, const Matrix4f& extrinsics, const Image& depthmap, float scale, const Image& normal );
 
-			/*
-			   o save or map-data
-			   o to SceneMesh / GLMesh using MC
-			   o addDepthNormalMap
-			   o getDepthMap for intrinsics/extrinsics ...
-			   o add loadRaw with width, height, depth
-			 */
+            void addSilhouette( const Matrix3f& intrinsics, const Matrix4f& extrinsics, const Image& silhouette );
+            void addSilhouette( const Matrix4f& proj, const Image& silhouette );
 
-			void saveRaw( const String& path, bool weighted ) const;
+            void rayCastDepthMap( Image& depthmap, const Matrix3f& intrinsics, const Matrix4f& extrinsics, float scale = 1.0f );
+            void rayCastDepthNormalMap( Image& depthmap, const Matrix3f& intrinsics, const Matrix4f& extrinsics, float scale = 1.0f );
+            void rayCastDepthNormalMapSlope( Image& depthmap, Image& slope, const Matrix3f& intrinsics, const Matrix4f& extrinsics, float scale = 1.0f );
 
-		private:
-			size_t	 _width;
-			size_t	 _height;
-			size_t	 _depth;
-			float	 _trunc;
-			Matrix4f _g2w;
-			CLBuffer _clvolume;
-			CLBuffer _clproj;
-			CLKernel _clvolclear;
-			CLKernel _clvoladd;
-			CLKernel _clsliceX, _clsliceY, _clsliceZ;
-			CLKernel _clraycastdepth;
-	};
+            void normalToWeight( Image& weight, const Image& normals );
 
+            size_t width() const { return _width; }
+            size_t height() const { return _height; }
+            size_t depth() const { return _depth; }
 
+            void toSceneMesh( SceneMesh& mesh, float minweight = 1.0f ) const;
+
+            float truncation() const { return _trunc; }
+            float& truncation() { return _trunc; }
+
+            void sliceX( Image& img ) const;
+            void sliceY( Image& img ) const;
+            void sliceZ( Image& img ) const;
+
+            const Matrix4f& gridToWorld() const;
+
+            /*
+               o save or map-data
+               o to SceneMesh / GLMesh using MC
+               o addDepthNormalMap
+               o getDepthMap for intrinsics/extrinsics ...
+               o add loadRaw with width, height, depth
+             */
+
+            void saveRaw( const String& path, bool weighted ) const;
+
+        private:
+            CLKernel _clvolclear;
+            CLKernel _clvolsetweight;
+            CLKernel _clvolscaleweight;
+            CLKernel _clvoladd;
+            CLKernel _clvoladdweighted;
+            CLKernel _clsliceX, _clsliceY, _clsliceZ;
+            CLKernel _clraycastdepth;
+            CLKernel _clraycastdepthnormal;
+            CLKernel _clraycastdepthnormalslope;
+            CLKernel _clsilhouette;
+            CLKernel _clnormweight;
+            CLBuffer _clproj;
+            CLBuffer _clvolume;
+            size_t   _width;
+            size_t   _height;
+            size_t   _depth;
+            float    _trunc;
+            Matrix4f _g2w;
+    };
+
+    inline const Matrix4f& TSDFVolume::gridToWorld() const
+    {
+        return _g2w;
+    }
 }
 
 #endif
