@@ -118,6 +118,8 @@ SET( CL_KERNELS
     cl/kernel/Matrix5.cl
     cl/kernel/Matrix6.cl
     cl/kernel/Matrix8.cl
+    cl/kernel/RNG.cl
+    cl/kernel/MWC64X.cl
     cl/kernel/fgp/fgp.cl
     cl/kernel/fgp/fgp_data.cl
     cl/kernel/fgp/fgpgrayweightedhuber.cl
