@@ -195,6 +195,7 @@ SET( CVT_HEADERS
    cl/CLObject.inl
    cl/CLPlatform.h
    cl/CLProgram.h
+   cl/CLPyramid.h
    cl/CLUtil.h
    cl/OpenCL.h
    container/List.h
@@ -567,6 +568,7 @@ SET( CVT_SOURCES
     cl/CLImageFormat.cpp
     cl/CLKernel.cpp
     cl/CLProgram.cpp
+    cl/CLPyramid.cpp
     com/Host.cpp
     com/Socket.cpp
     com/TCPClient.cpp
