@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +22,6 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
 */
-
 #ifndef CVT_GLSCENE_H
 #define CVT_GLSCENE_H
 
@@ -37,37 +37,39 @@
 #include <cvt/gl/progs/GLDrawImageProg.h>
 
 namespace cvt {
-	enum GLSceneDrawFeatures {
-		GLS_SHOW_FPS	 = ( 1 << 0 ),
-		GLS_SHADOWS		 = ( 1 << 1 ),
-		GLS_SSAO		 = ( 1 << 2 ),
-		GLS_DEBUG		 = ( 1 << 3 )
-	};
+    enum GLSceneDrawFeatures {
+        GLS_CLEAR_COLOR  = ( 1 << 0 ),
+        GLS_CLEAR_DEPTH  = ( 1 << 1 ),
+        GLS_SHOW_FPS     = ( 1 << 2 ),
+        GLS_SHADOWS      = ( 1 << 3 ),
+        GLS_SSAO         = ( 1 << 4 ),
+        GLS_DEBUG        = ( 1 << 5 )
+    };
 
-	CVT_ENUM_TO_FLAGS( GLSceneDrawFeatures, GLSceneDrawFlags )
+    CVT_ENUM_TO_FLAGS( GLSceneDrawFeatures, GLSceneDrawFlags )
 
     class GLSMaterial;
     class GLSTexture;
     class GLMesh;
 
-	class GLScene
-	{
-		public:
-			GLScene();
-			GLScene( const Scene& scene );
-			~GLScene();
+    class GLScene
+    {
+        public:
+            GLScene();
+            GLScene( const Scene& scene );
+            ~GLScene();
 
 
-			void                    draw( size_t cam );
-			GLSceneDrawFlags&       drawMode() { return _drawFlags; }
-			const GLSceneDrawFlags& drawMode() const { return _drawFlags; }
+            void                    draw( size_t cam );
+            GLSceneDrawFlags&       drawMode() { return _drawFlags; }
+            const GLSceneDrawFlags& drawMode() const { return _drawFlags; }
 
             const GLSTexture*       texture( const String& path ) const;
             const GLSMaterial*      material( const String& name ) const;
 
-			const Time&             time() const { return _time; }
+            const Time&             time() const { return _time; }
 
-			GLSCamera&              camera( size_t i ) { return _cams[ i ]; }
+            GLSCamera&              camera( size_t i ) { return _cams[ i ]; }
             GLSLight&               light( size_t i ) { return _lights[ i ];}
 
             const GLSCamera&        camera( size_t i ) const { return _cams[ i ]; }
@@ -77,33 +79,34 @@ namespace cvt {
             size_t                  cameraSize() const { return _cams.size(); }
             size_t                  lightSize() const { return _lights.size(); }
 
-		private:
-            const GLSMaterial* addSceneMaterial( const SceneMaterial* mat, const Scene& scene );
-            void               addSceneTexture( const SceneTexture* mat );
+        private:
+            GLScene( const GLScene& );
+            GLScene& operator=( const GLScene& );
 
-			std::vector<GLSCamera>		_cams;
-			std::vector<GLSLight>		_lights;
-			std::vector<GLSMaterial*>	_materials;
-			std::vector<GLSTexture*>	_textures;
-			std::vector<GLMesh*>		_meshes;
-			GLSRenderableGroup*			_renderables;
-			GLSShader					_shader;
-			GLDrawImageProg				_drawimgp;
+            const GLSMaterial*          addSceneMaterial( const SceneMaterial* mat, const Scene& scene );
+            void                        addSceneTexture( const SceneTexture* mat );
 
-			GLSceneDrawFlags			_drawFlags;
-			float						_fps;
-			Time						_time;
-			GLTexture					_texture;
-	};
+            std::vector<GLSCamera>      _cams;
+            std::vector<GLSLight>       _lights;
+            std::vector<GLSMaterial*>   _materials;
+            std::vector<GLSTexture*>    _textures;
+            std::vector<GLMesh*>        _meshes;
+            GLSRenderableGroup*         _renderables;
+            GLSShader                   _shader;
+            GLDrawImageProg             _drawimgp;
 
-	inline GLScene::GLScene() : _shader( *this )
-	{
-		_renderables = new GLSRenderableGroup();
+            GLSceneDrawFlags            _drawFlags;
+            float                       _fps;
+            Time                        _time;
+    };
 
-		_texture.alloc( GL_DEPTH_COMPONENT, 640, 480, GL_DEPTH_COMPONENT, GL_FLOAT );
-	}
+    inline GLScene::GLScene() :
+        _shader( *this ),
+        _drawFlags( GLS_CLEAR_DEPTH | GLS_CLEAR_COLOR )
+    {
+        _renderables = new GLSRenderableGroup();
+    }
 
- 
 }
 
 #endif

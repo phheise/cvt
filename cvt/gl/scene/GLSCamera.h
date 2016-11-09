@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +22,6 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
 */
-
 #ifndef CVT_GLSCAMERA_H
 #define CVT_GLSCAMERA_H
 
@@ -30,30 +30,31 @@
 #include <cvt/gl/scene/GLSTransformable.h>
 
 namespace cvt {
-	class GLSCamera : public GLSTransformable {
-		public:
-			GLSCamera( const GLSCamera& cam );
-			GLSCamera( float fovy, float aspect, float near, float far );
-			~GLSCamera();
+    class GLSCamera : public GLSTransformable {
+        public:
+            GLSCamera( const GLSCamera& cam );
+            GLSCamera( float fovy, float aspect, float near, float far );
+            ~GLSCamera();
 
-			const Matrix4f& projection() const { return _proj; }
+            const Matrix4f& projection() const { return _proj; }
+            Matrix4f&       projection() { return _proj; }
 
-		private:
-			Matrix4f _proj;
-	};
+        private:
+            Matrix4f _proj;
+    };
 
-	inline GLSCamera::GLSCamera( const GLSCamera& cam ) : GLSTransformable( cam ), _proj( cam._proj )
-	{
-	}
+    inline GLSCamera::GLSCamera( const GLSCamera& cam ) : GLSTransformable( cam ), _proj( cam._proj )
+    {
+    }
 
-	inline GLSCamera::GLSCamera( float fovy, float aspect, float near, float far )
-	{
-		GL::perspective( _proj, fovy, aspect, near, far );
-	}
+    inline GLSCamera::GLSCamera( float fovy, float aspect, float near, float far )
+    {
+        GL::perspective( _proj, fovy, aspect, near, far );
+    }
 
-	inline GLSCamera::~GLSCamera()
-	{
-	}
+    inline GLSCamera::~GLSCamera()
+    {
+    }
 }
 
 #endif
