@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -28,71 +29,72 @@ const sampler_t SAMPLER_NN = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | C
 #define SIGMA ( 1.0f / sqrt( 8.0f ) )
 #define TAU   ( 1.0f / sqrt( 8.0f ) )
 #define THETA  1.0f
-#define ALPHA  0.01f
+//#define ALPHA  0.01f // replace by hubereps
 
-__kernel void PDHuber( __write_only image2d_t out, __write_only image2d_t outp, __read_only image2d_t last, __read_only image2d_t imgp, __read_only image2d_t image, const float lambda, __local float4* buf, __local float8* buf2  )
+__kernel void PDHuber( __write_only image2d_t out, __write_only image2d_t outp,
+                       __read_only image2d_t last, __read_only image2d_t imgp,
+                       __read_only image2d_t image, const float lambda, const float hubereps, __local float4* buf, __local float8* buf2  )
 {
-	const int gx = get_global_id( 0 );
-	const int gy = get_global_id( 1 );
-	const int lx = get_local_id( 0 );
+    const int gx = get_global_id( 0 );
+    const int gy = get_global_id( 1 );
+    const int lx = get_local_id( 0 );
     const int ly = get_local_id( 1 );
     const int lw = get_local_size( 0 );
     const int lh = get_local_size( 1 );
     const int bstride = lw + 2;
-	const int2 base = ( int2 )( get_group_id( 0 ) * lw - 1, get_group_id( 1 ) * lh - 1 );
-	const int2 base2 = ( int2 )( get_group_id( 0 ) * ( lw << 1 ) - 2, get_group_id( 1 ) * lh - 1 );
-	int2 coord;
-	float4 dx, dy, div, pxout, pyout, norm;
+    const int2 base = ( int2 )( get_group_id( 0 ) * lw - 1, get_group_id( 1 ) * lh - 1 );
+    const int2 base2 = ( int2 )( get_group_id( 0 ) * ( lw << 1 ) - 2, get_group_id( 1 ) * lh - 1 );
+    int2 coord;
+    float4 dx, dy, div, pxout, pyout, norm;
 
-	for( int y = ly; y < lh + 2; y += lh ) {
-		for( int x = lx; x < lw + 2; x += lw ) {
-			// read image
-			buf[ mad24( y, bstride, x ) ] = read_imagef( last, SAMPLER_CLAMP_NN, base + ( int2 ) ( x, y ) );
-		}
-	}
+    for( int y = ly; y < lh + 2; y += lh ) {
+        for( int x = lx; x < lw + 2; x += lw ) {
+            // read image
+            buf[ mad24( y, bstride, x ) ] = read_imagef( last, SAMPLER_CLAMP_NN, base + ( int2 ) ( x, y ) );
+        }
+    }
 
-	barrier( CLK_LOCAL_MEM_FENCE );
+    barrier( CLK_LOCAL_MEM_FENCE );
 
 #define BUF( x, y ) ( buf[ mad24( ( y ) , bstride, ( x )  ) ] )
 
 #define BUF2( x, y ) ( buf2[ mad24( ( y ) + 1 , bstride, ( x ) + 1  ) ] )
 
-	for( int y = ly; y < lh + 1; y += lh ) {
-		coord.y = base2.y + y;
-		for( int x = lx; x < lw + 1; x += lw ) {
+    for( int y = ly; y < lh + 1; y += lh ) {
+        coord.y = base2.y + y;
+        for( int x = lx; x < lw + 1; x += lw ) {
 
-			dx = BUF( x, y ) - BUF( x + 1, y );
-			dy = BUF( x, y ) - BUF( x, y + 1 );
+            dx = BUF( x, y ) - BUF( x + 1, y );
+            dy = BUF( x, y ) - BUF( x, y + 1 );
 
-			float8 p;
-			coord.x = base2.x + ( x << 1 );
-		    p.lo = ( read_imagef( imgp, SAMPLER_NN, coord ) + SIGMA * dx ) / ( float4 ) ( 1.0f + SIGMA * ALPHA );
-			coord.x += 1;
-			p.hi = ( read_imagef( imgp, SAMPLER_NN, coord ) + SIGMA * dy ) / ( float4 ) ( 1.0f + SIGMA * ALPHA );
+            float8 p;
+            coord.x = base2.x + ( x << 1 );
+            p.lo = ( read_imagef( imgp, SAMPLER_NN, coord ) + SIGMA * dx ) / ( float4 ) ( 1.0f + SIGMA * hubereps );
+            coord.x += 1;
+            p.hi = ( read_imagef( imgp, SAMPLER_NN, coord ) + SIGMA * dy ) / ( float4 ) ( 1.0f + SIGMA * hubereps );
 
-			float4 pproj = fmax( ( float4 ) 1.0f, sqrt( p.lo * p.lo + p.hi * p.hi ) );
+            float4 pproj = fmax( ( float4 ) 1.0f, sqrt( p.lo * p.lo + p.hi * p.hi ) );
 
-			buf2[ mad24( y, bstride, x ) ] = p / ( float8 ) ( pproj, pproj );
-		}
-	}
+            buf2[ mad24( y, bstride, x ) ] = p / ( float8 ) ( pproj, pproj );
+        }
+    }
 
-	barrier( CLK_LOCAL_MEM_FENCE );
+    barrier( CLK_LOCAL_MEM_FENCE );
 
-	if( gx >= get_image_width( image ) || gy >= get_image_height( image ) )
-		return;
+    if( gx >= get_image_width( image ) || gy >= get_image_height( image ) )
+        return;
 
+    float8 p = BUF2( lx, ly );
+    div = p.lo - BUF2( lx - 1, ly ).lo + p.hi - BUF2( lx, ly - 1 ).hi;
 
-	float8 p = BUF2( lx, ly );
-	div = p.lo - BUF2( lx - 1, ly ).lo + p.hi - BUF2( lx, ly - 1 ).hi;
-
-	float4 img    = read_imagef( image, SAMPLER_NN, ( int2 )( gx, gy ) );
+    float4 img    = read_imagef( image, SAMPLER_NN, ( int2 )( gx, gy ) );
     float4 imgnew = ( BUF( lx + 1, ly + 1 ) + TAU * ( lambda * img - div ) )/( float4 ) ( 1.0 + TAU * lambda );
-	imgnew += THETA * ( imgnew - BUF( lx + 1, ly + 1 )  );
+    imgnew += THETA * ( imgnew - BUF( lx + 1, ly + 1 )  );
 
-	//imgnew = fabs( imgnew - img );
-	//imgnew.w = 1.0f;
-	write_imagef( out, ( int2 ) ( gx, gy ), imgnew  );
-	write_imagef( outp, ( int2 ) ( gx << 1, gy ), p.lo );
-	write_imagef( outp, ( int2 ) ( ( gx << 1 ) + 1, gy ), p.hi );
+    //imgnew = fabs( imgnew - img );
+    //imgnew.w = 1.0f;
+    write_imagef( out, ( int2 ) ( gx, gy ), imgnew  );
+    write_imagef( outp, ( int2 ) ( gx << 1, gy ), p.lo );
+    write_imagef( outp, ( int2 ) ( ( gx << 1 ) + 1, gy ), p.hi );
 
 }

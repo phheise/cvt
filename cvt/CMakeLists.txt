@@ -121,6 +121,22 @@ SET( CL_KERNELS
     cl/kernel/Matrix8.cl
     cl/kernel/RNG.cl
     cl/kernel/MWC64X.cl
+    cl/kernel/PDEdgeWeight.cl
+    cl/kernel/PDDiffTensor.cl
+    cl/kernel/PDDROF.cl
+    cl/kernel/PDDROFWeighted.cl
+    cl/kernel/PDDROFDiffTensor.cl
+    cl/kernel/PDDHuber.cl
+    cl/kernel/PDDHuberWeighted.cl
+    cl/kernel/PDDHuberDiffTensor.cl
+    cl/kernel/PDROF.cl
+    cl/kernel/PDROFWeighted.cl
+    cl/kernel/PDHuber.cl
+    cl/kernel/PDHuberWeighted.cl
+    cl/kernel/PDHuberWeightedInpaint.cl
+    cl/kernel/PDMSC.cl
+    cl/kernel/PDLOG1.cl
+    cl/kernel/PDHL.cl
     cl/kernel/fgp/fgp.cl
     cl/kernel/fgp/fgp_data.cl
     cl/kernel/fgp/fgpgrayweightedhuber.cl
@@ -160,10 +176,6 @@ SET( CL_KERNELS
     cl/kernel/tvl1stereo/tvl1.cl
     cl/kernel/tvl1stereo/tvl1_warp.cl
     cl/kernel/TSDFVolume/TSDFVolume.cl
-    cl/kernel/PDROF.cl
-    cl/kernel/PDHuber.cl
-    cl/kernel/PDHuberWeighted.cl
-    cl/kernel/PDHuberWeightedInpaint.cl
     cl/kernel/pmhstereo.cl
     cl/kernel/MC.cl
 )
@@ -492,6 +504,7 @@ SET( CVT_HEADERS
    vision/MeasurementModel.h
    vision/Patch.h
    vision/PatchGenerator.h
+   vision/PDOptCL.h
    vision/PMHuberStereo.h
    vision/ReprojectionError.h
    vision/PointCorrespondences3d2d.h
@@ -728,6 +741,7 @@ SET( CVT_SOURCES
     vision/features/RowLookupTableTest.cpp
     vision/PatchGenerator.cpp
     vision/Patch.cpp
+    vision/PDOptCL.cpp
     vision/PMHuberStereo.cpp
     vision/ReprojectionError.cpp
     vision/SparseBundleAdjustment.cpp
