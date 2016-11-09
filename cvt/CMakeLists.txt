@@ -112,6 +112,7 @@ SET( CL_KERNELS
     cl/kernel/gradx.cl
     cl/kernel/gradxy.cl
     cl/kernel/median3.cl
+    cl/kernel/Plane.cl
     cl/kernel/FlowColorCode.cl
     cl/kernel/Matrix3.cl
     cl/kernel/Matrix4.cl
