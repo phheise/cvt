@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -25,23 +26,45 @@
 __kernel void pyrup_mul( __write_only image2d_t out,  __read_only image2d_t in, const float mul )
 {
     const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_LINEAR;
-	const int gx = get_global_id( 0 );
-	const int gy = get_global_id( 1 );
-	const int width = get_image_width( in );
-	const int height = get_image_height( in );
-	const int dstwidth = get_image_width( out );
-	const int dstheight = get_image_height( out );
-	float incx = ( float ) width / ( float ) dstwidth;
-	float incy = ( float ) height / ( float ) dstheight;
-	float2 coord;
+    const int gx = get_global_id( 0 );
+    const int gy = get_global_id( 1 );
+    const int width = get_image_width( in );
+    const int height = get_image_height( in );
+    const int dstwidth = get_image_width( out );
+    const int dstheight = get_image_height( out );
+    float incx = ( float ) width / ( float ) dstwidth;
+    float incy = ( float ) height / ( float ) dstheight;
+    float2 coord;
 
-	if( gx >= dstwidth || gy >= dstheight )
-		return;
+    if( gx >= dstwidth || gy >= dstheight )
+        return;
 
-	coord.x = incx * ( gx + 0.5f );
-	coord.y = incy * ( gy + 0.5f );
+    coord.x = incx * ( gx + 0.5f );
+    coord.y = incy * ( gy + 0.5f );
 
-	float4 val = mul * read_imagef( in, sampler, coord );
-	write_imagef( out, ( int2 )( gx, gy ), val );
+    float4 val = mul * read_imagef( in, sampler, coord );
+    write_imagef( out, ( int2 )( gx, gy ), val );
 }
 
+__kernel void pyrup_mul4f( __write_only image2d_t out,  __read_only image2d_t in, float4 mul )
+{
+    const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_LINEAR;
+    const int gx = get_global_id( 0 );
+    const int gy = get_global_id( 1 );
+    const int width = get_image_width( in );
+    const int height = get_image_height( in );
+    const int dstwidth = get_image_width( out );
+    const int dstheight = get_image_height( out );
+    float incx = ( float ) width / ( float ) dstwidth;
+    float incy = ( float ) height / ( float ) dstheight;
+    float2 coord;
+
+    if( gx >= dstwidth || gy >= dstheight )
+        return;
+
+    coord.x = incx * ( gx + 0.5f );
+    coord.y = incy * ( gy + 0.5f );
+
+    float4 val = mul * read_imagef( in, sampler, coord );
+    write_imagef( out, ( int2 )( gx, gy ), val );
+}
