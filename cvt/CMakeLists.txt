@@ -120,6 +120,8 @@ SET( CL_KERNELS
     cl/kernel/Matrix6.cl
     cl/kernel/Matrix8.cl
     cl/kernel/RNG.cl
+    cl/kernel/Stack.cl
+    cl/kernel/GUMM.cl
     cl/kernel/MWC64X.cl
     cl/kernel/PDEdgeWeight.cl
     cl/kernel/PDDiffTensor.cl
@@ -177,6 +179,7 @@ SET( CL_KERNELS
     cl/kernel/tvl1stereo/tvl1_warp.cl
     cl/kernel/TSDFVolume/TSDFVolume.cl
     cl/kernel/TSDFVolume/TSDFEMVolume.cl
+    cl/kernel/TSDFVH/TSDFVH.cl
     cl/kernel/pmhstereo.cl
     cl/kernel/MC.cl
 )
@@ -212,6 +215,7 @@ SET( CVT_HEADERS
    cl/CLPyramid.h
    cl/CLUtil.h
    cl/OpenCL.h
+   cl/CLGUMM.h
    container/List.h
    container/RBTree.h
    com/AsyncTCPServer.h
@@ -517,6 +521,7 @@ SET( CVT_HEADERS
    vision/StereoRectification.h
    vision/TSDFVolume.h
    vision/TSDFEMVolume.h
+   vision/TSDFVH.h
    vision/Vision.h
    vision/SparseBundleAdjustment.h
    vision/rgbdvo/ApproxMedian.h
@@ -767,6 +772,7 @@ SET( CVT_SOURCES
     #vision/slam/stereo/PatchStereoInit.cpp
     vision/TSDFVolume.cpp
     vision/TSDFEMVolume.cpp
+    vision/TSDFVH.cpp
     vision/Vision.cpp
     io/xml/XMLDecoder.cpp
     io/xml/XMLDecoderUTF8.cpp
