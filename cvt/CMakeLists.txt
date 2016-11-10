@@ -471,6 +471,7 @@ SET( CVT_HEADERS
    util/internal/ParamTypes.def
    vision/BoardDetector.h
    vision/CameraCalibration.h
+   vision/Disparity.h
    vision/ESM.h
    vision/EPnP.h
    vision/features/AGAST.h
@@ -718,6 +719,7 @@ SET( CVT_SOURCES
     util/PluginFile.cpp
     vision/BoardDetector.cpp
     vision/CameraCalibrationTest.cpp
+    vision/Disparity.cpp
     vision/EPnP.cpp
     vision/features/AGAST.cpp
     vision/features/agast/OAST9_16.cpp
