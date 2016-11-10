@@ -381,6 +381,9 @@ SET( CVT_HEADERS
    io/IOHandler.h
    io/IOSelect.h
    io/KittiVOParser.h
+   io/KittiSF2012.h
+   io/KittiSF2015.h
+   io/VAFRICParser.h
    io/Resources.h
    io/RawVideoWriter.h
    io/RawVideoReader.h
@@ -681,6 +684,8 @@ SET( CVT_SOURCES
     io/ImageSequence.cpp
     io/IOSelect.cpp
     io/KittiVOParser.cpp
+    io/KittiSF2012.cpp
+    io/KittiSF2015.cpp
     io/Resources.cpp
     io/RawVideoWriter.cpp
     io/RawVideoReader.cpp
