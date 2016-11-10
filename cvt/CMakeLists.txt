@@ -176,6 +176,7 @@ SET( CL_KERNELS
     cl/kernel/tvl1stereo/tvl1.cl
     cl/kernel/tvl1stereo/tvl1_warp.cl
     cl/kernel/TSDFVolume/TSDFVolume.cl
+    cl/kernel/TSDFVolume/TSDFEMVolume.cl
     cl/kernel/pmhstereo.cl
     cl/kernel/MC.cl
 )
@@ -515,6 +516,7 @@ SET( CVT_HEADERS
    vision/StereoCameraCalibration.h
    vision/StereoRectification.h
    vision/TSDFVolume.h
+   vision/TSDFEMVolume.h
    vision/Vision.h
    vision/SparseBundleAdjustment.h
    vision/rgbdvo/ApproxMedian.h
@@ -764,6 +766,7 @@ SET( CVT_SOURCES
     #vision/slam/stereo/ORBStereoInit.cpp
     #vision/slam/stereo/PatchStereoInit.cpp
     vision/TSDFVolume.cpp
+    vision/TSDFEMVolume.cpp
     vision/Vision.cpp
     io/xml/XMLDecoder.cpp
     io/xml/XMLDecoderUTF8.cpp
