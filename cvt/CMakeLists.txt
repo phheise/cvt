@@ -102,6 +102,9 @@ SET( GLSL_SHADER
 )
 
 SET( CL_KERNELS
+    cl/kernel/BHStereo.cl
+    cl/kernel/BHStereo512.cl
+    cl/kernel/BHFlow.cl
     cl/kernel/gaussiir.cl
     cl/kernel/gaussiir2.cl
     cl/kernel/BC.cl
@@ -477,6 +480,8 @@ SET( CVT_HEADERS
    util/PluginManager.h
    util/PluginFile.h
    util/internal/ParamTypes.def
+   vision/BHStereo.h
+   vision/BHFlow.h
    vision/BoardDetector.h
    vision/CameraCalibration.h
    vision/Disparity.h
@@ -729,6 +734,8 @@ SET( CVT_SOURCES
     util/String.cpp
     util/PluginManager.cpp
     util/PluginFile.cpp
+    vision/BHStereo.cpp
+    vision/BHFlow.cpp
     vision/BoardDetector.cpp
     vision/CameraCalibrationTest.cpp
     vision/Disparity.cpp
