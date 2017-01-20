@@ -207,6 +207,7 @@ SET( CVT_HEADERS
    cl/CLException.h
    cl/CLImage2D.h
    cl/CLImageFormat.h
+   cl/CLImageDesc.h
    cl/CLKernel.h
    cl/CLLocalSpace.h
    cl/CLMatrix.h
