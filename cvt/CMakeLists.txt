@@ -115,6 +115,7 @@ SET( CL_KERNELS
     cl/kernel/Feature.cl
     cl/kernel/FAST.cl
     cl/kernel/Harris.cl
+    cl/kernel/KLT_stereo.cl
     cl/kernel/imageutil.cl
     cl/kernel/gradx.cl
     cl/kernel/gradxy.cl
@@ -523,6 +524,7 @@ SET( CVT_HEADERS
    vision/Flow.h
    vision/HCalibration.h
    vision/KLTPatch.h
+   vision/KLTStereoCL.h
    vision/LSH.h
    vision/MeasurementModel.h
    vision/Patch.h
@@ -769,6 +771,7 @@ SET( CVT_SOURCES
     vision/IntegralImage.cpp
     vision/ImagePyramidTest.cpp
     vision/KLTPatchTest.cpp
+    vision/KLTStereoCL.cpp
     vision/features/ORB.cpp
     vision/features/RowLookupTable.cpp
     vision/features/RowLookupTableTest.cpp
