@@ -108,6 +108,7 @@ SET( CL_KERNELS
     cl/kernel/BRIEF.cl
     cl/kernel/gaussiir.cl
     cl/kernel/gaussiir2.cl
+    cl/kernel/gaussian.cl
     cl/kernel/BC.cl
     cl/kernel/clear.cl
     cl/kernel/clearbuffer.cl
@@ -260,6 +261,7 @@ SET( CVT_HEADERS
    geom/scene/SceneSpatial.h
    geom/scene/SceneTexture.h
    gfx/Color.h
+   gfx/GaussianCL.h
    gfx/IBorder.h
    gfx/IBoxFilter.h
    gfx/IDecompose.h
