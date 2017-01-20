@@ -148,6 +148,8 @@ SET( CL_KERNELS
     cl/kernel/PDMSC.cl
     cl/kernel/PDLOG1.cl
     cl/kernel/PDHL.cl
+    cl/kernel/ProxPrecond.cl
+    cl/kernel/ProxStereo.cl
     cl/kernel/fgp/fgp.cl
     cl/kernel/fgp/fgp_data.cl
     cl/kernel/fgp/fgpgrayweightedhuber.cl
@@ -533,6 +535,8 @@ SET( CVT_HEADERS
    vision/PatchGenerator.h
    vision/PDOptCL.h
    vision/PMHuberStereo.h
+   vision/ProxPrecondCL.h
+   vision/ProxStereoCL.h
    vision/ReprojectionError.h
    vision/PointCorrespondences3d2d.h
    vision/StereoCameraCalibration.h
@@ -781,6 +785,8 @@ SET( CVT_SOURCES
     vision/Patch.cpp
     vision/PDOptCL.cpp
     vision/PMHuberStereo.cpp
+    vision/ProxPrecondCL.cpp
+    vision/ProxStereoCL.cpp
     vision/ReprojectionError.cpp
     vision/SparseBundleAdjustment.cpp
     vision/StereoRectification.cpp
