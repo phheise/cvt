@@ -111,6 +111,9 @@ SET( CL_KERNELS
     cl/kernel/clear.cl
     cl/kernel/clearbuffer.cl
     cl/kernel/fill.cl
+    cl/kernel/Feature.cl
+    cl/kernel/FAST.cl
+    cl/kernel/Harris.cl
     cl/kernel/imageutil.cl
     cl/kernel/gradx.cl
     cl/kernel/gradxy.cl
@@ -488,6 +491,9 @@ SET( CVT_HEADERS
    vision/Disparity.h
    vision/ESM.h
    vision/EPnP.h
+   vision/FeatureCL.h
+   vision/FASTCL.h
+   vision/HarrisCL.h
    vision/features/AGAST.h
    vision/features/agast/ASTDetector.h
    vision/features/agast/OAST9_16.h
@@ -741,6 +747,8 @@ SET( CVT_SOURCES
     vision/CameraCalibrationTest.cpp
     vision/Disparity.cpp
     vision/EPnP.cpp
+    vision/FASTCL.cpp
+    vision/HarrisCL.cpp
     vision/features/AGAST.cpp
     vision/features/agast/OAST9_16.cpp
     vision/features/agast/Agast5_8.cpp
