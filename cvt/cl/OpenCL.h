@@ -2,6 +2,7 @@
    The MIT License (MIT)
 
    Copyright (c) 2011 - 2013, Philipp Heise and Sebastian Klose
+   Copyright (c) 2016, BMW Car IT GmbH, Philipp Heise (philipp.heise@bmw.de)
 
    Permission is hereby granted, free of charge, to any person obtaining a copy
    of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +30,7 @@
 #include <OpenCL/opencl.h>
 #include <OpenCL/cl_gl.h>
 #else
-#include <CL/opencl.h>
+#include <CL/cl.h>
 #include <CL/cl_gl.h>
 #endif
 
