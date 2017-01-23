@@ -122,6 +122,8 @@ SET( CL_KERNELS
     cl/kernel/gradxy.cl
     cl/kernel/median3.cl
     cl/kernel/Plane.cl
+    cl/kernel/VPMStereo.cl
+    cl/kernel/SVPMFlow.cl
     cl/kernel/FlowColorCode.cl
     cl/kernel/Matrix3.cl
     cl/kernel/Matrix4.cl
@@ -395,6 +397,7 @@ SET( CVT_HEADERS
    io/Camera.h
    io/FileSystem.h
    io/FloFile.h
+   io/GPS.h
    io/ImageSequence.h
    io/IOHandler.h
    io/IOSelect.h
@@ -501,6 +504,8 @@ SET( CVT_HEADERS
    vision/FeatureCL.h
    vision/FASTCL.h
    vision/HarrisCL.h
+   vision/SVPMFlowCL.h
+   vision/VPMStereoCL.h
    vision/features/AGAST.h
    vision/features/agast/ASTDetector.h
    vision/features/agast/OAST9_16.h
@@ -760,6 +765,8 @@ SET( CVT_SOURCES
     vision/EPnP.cpp
     vision/FASTCL.cpp
     vision/HarrisCL.cpp
+    vision/SVPMFlowCL.cpp
+    vision/VPMStereoCL.cpp
     vision/features/AGAST.cpp
     vision/features/agast/OAST9_16.cpp
     vision/features/agast/Agast5_8.cpp
