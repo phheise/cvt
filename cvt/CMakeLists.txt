@@ -397,7 +397,8 @@ SET( CVT_HEADERS
    io/Camera.h
    io/FileSystem.h
    io/FloFile.h
-   io/GPS.h
+   io/GNSS.h
+   io/GNSSENU.h
    io/ImageSequence.h
    io/IOHandler.h
    io/IOSelect.h
