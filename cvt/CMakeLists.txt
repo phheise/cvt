@@ -505,6 +505,7 @@ SET( CVT_HEADERS
    vision/FeatureCL.h
    vision/FASTCL.h
    vision/HarrisCL.h
+   vision/RGBD.h
    vision/SVPMFlowCL.h
    vision/VPMStereoCL.h
    vision/features/AGAST.h
@@ -766,6 +767,7 @@ SET( CVT_SOURCES
     vision/EPnP.cpp
     vision/FASTCL.cpp
     vision/HarrisCL.cpp
+    vision/RGBD.cpp
     vision/SVPMFlowCL.cpp
     vision/VPMStereoCL.cpp
     vision/features/AGAST.cpp

@@ -182,12 +182,6 @@ namespace cvt
                              const Eigen::Matrix<T, 4, 4>& trans,
                              const Eigen::Matrix<T, 4, 1>& p );
 
-        static void unprojectToScenePoints( ScenePoints& pts, const Image& texture, const Image& depthmap, const CameraCalibration& calibration, float dscale = 1.0f );
-
-        static void unprojectToScenePoints( ScenePoints& pts, const Image& texture, const Image& depthmap, float dscale = 1.0f );
-
-        static void unprojectToXYZ( PointSet3f& pts, Image& depth, const Matrix3f& K, float depthScale );
-
         static void disparityToDepthmap( Image& depthmap, const Image& disparity, const float dispscale, const float focallength, const float baseline, const float dispthres = 0.01f );
 
         /**
