@@ -22,8 +22,8 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
    THE SOFTWARE.
 */
-#ifndef CL_MAT3F_CL
-#define CL_MAT3F_CL
+#ifndef CVT_MAT3F_CL
+#define CVT_MAT3F_CL
 
 struct Mat3f {
     float3 m[ 3 ];

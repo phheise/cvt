@@ -106,6 +106,7 @@ SET( CL_KERNELS
     cl/kernel/BHStereo512.cl
     cl/kernel/BHFlow.cl
     cl/kernel/BRIEF.cl
+    cl/kernel/DECAF.cl
     cl/kernel/gaussiir.cl
     cl/kernel/gaussiir2.cl
     cl/kernel/gaussian.cl
@@ -133,6 +134,7 @@ SET( CL_KERNELS
     cl/kernel/Matrix6.cl
     cl/kernel/Matrix8.cl
     cl/kernel/RNG.cl
+    cl/kernel/RGBDWarpReduce.cl
     cl/kernel/Stack.cl
     cl/kernel/GUMM.cl
     cl/kernel/MWC64X.cl
@@ -181,6 +183,7 @@ SET( CL_KERNELS
     cl/kernel/tvl1flow/tvl1.cl
     cl/kernel/tvl1flow/tvl1_dataadd.cl
     cl/kernel/tvl1flow/tvl1_warp.cl
+    cl/kernel/SSDVO.cl
     cl/kernel/stereo/stereoCV.cl
     cl/kernel/stereo/stereoCVFBP.cl
     cl/kernel/stereo/stereoCVQSearch.cl
@@ -231,6 +234,7 @@ SET( CVT_HEADERS
    cl/CLPlatform.h
    cl/CLProgram.h
    cl/CLPyramid.h
+   cl/CLRGBDWarpReduce.h
    cl/CLUtil.h
    cl/OpenCL.h
    cl/CLGUMM.h
@@ -507,6 +511,7 @@ SET( CVT_HEADERS
    vision/BoardDetector.h
    vision/CameraCalibration.h
    vision/Disparity.h
+   vision/DECAFCL.h
    vision/ESM.h
    vision/EPnP.h
    vision/FeatureCL.h
@@ -514,6 +519,7 @@ SET( CVT_HEADERS
    vision/HarrisCL.h
    vision/RGBD.h
    vision/SVPMFlowCL.h
+   vision/SSDVOCL.h
    vision/VPMStereoCL.h
    vision/features/AGAST.h
    vision/features/agast/ASTDetector.h
@@ -773,11 +779,13 @@ SET( CVT_SOURCES
     vision/BoardDetector.cpp
     vision/CameraCalibrationTest.cpp
     vision/Disparity.cpp
+    vision/DECAFCL.cpp
     vision/EPnP.cpp
     vision/FASTCL.cpp
     vision/HarrisCL.cpp
     vision/RGBD.cpp
     vision/SVPMFlowCL.cpp
+    vision/SSDVOCL.cpp
     vision/VPMStereoCL.cpp
     vision/features/AGAST.cpp
     vision/features/agast/OAST9_16.cpp
