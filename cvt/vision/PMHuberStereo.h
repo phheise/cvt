@@ -79,6 +79,8 @@ namespace cvt {
             void gradient( Image& output, const Image& input );
             void clear( Image& output );
 
+            void disparityToNormal( Image& output, const Image& input ) const;
+
             void clearViewBuffer( CLBuffer& buf, int width, int height );
 
             void pyrUpMul( Image& output, const Image& input, const Vector4f& mul );
@@ -101,6 +103,7 @@ namespace cvt {
             CLKernel _clpmh_weight;
             CLKernel _clpmh_bilateralweight;
             CLKernel _clpmh_visualize_depth_normal;
+            CLKernel _clpmh_disparitytonormal;
             CLKernel _clpyrupmul;
             PDOptCL  _pdopt;
             PDROFInpaint _pdrofinpaint;

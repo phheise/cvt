@@ -62,6 +62,7 @@ namespace cvt {
         _clpmh_weight( _pmhstereo_source, "pmhstereo_weight" ),
         _clpmh_bilateralweight( _pmhstereo_source, "pmhstereo_bilateral_weight_to_alpha" ),
         _clpmh_visualize_depth_normal( _pmhstereo_source, "pmhstereo_visualize_depth_normal" ),
+        _clpmh_disparitytonormal( _pmhstereo_source, "pmhstereo_disparity_to_normal" ),
         _clpyrupmul( _pyrupmul_source, "pyrup_mul4f" )
     {
 
@@ -358,31 +359,22 @@ namespace cvt {
             _clpmh_init.setArg<int>( 7, ( int ) LR );
             _clpmh_init.run( CLNDRange( Math::pad( first.width(), KX ), Math::pad( first.height(), KY ) ), CLNDRange( KX, KY ) );
         } else {
-            if( initdisparity && !initnormalmap ) {
-                _clpmh_init_disparity.setArg( 0, output );
-                _clpmh_init_disparity.setArg( 1, first );
-                _clpmh_init_disparity.setArg( 2, second );
-                _clpmh_init_disparity.setArg( 3, firstgrad );
-                _clpmh_init_disparity.setArg( 4, secondgrad );
-                _clpmh_init_disparity.setArg( 5, ( int ) patchsize );
-                _clpmh_init_disparity.setArg( 6, disparitymax );
-                _clpmh_init_disparity.setArg<int>( 7, ( int ) LR );
-                _clpmh_init_disparity.setArg( 8, *initdisparity );
-                _clpmh_init_disparity.run( CLNDRange( Math::pad( first.width(), KX ), Math::pad( first.height(), KY ) ), CLNDRange( KX, KY ) );
-            } else {
-                _clpmh_init_disparity_normal.setArg( 0, output );
-                _clpmh_init_disparity_normal.setArg( 1, first );
-                _clpmh_init_disparity_normal.setArg( 2, second );
-                _clpmh_init_disparity_normal.setArg( 3, firstgrad );
-                _clpmh_init_disparity_normal.setArg( 4, secondgrad );
-                _clpmh_init_disparity_normal.setArg( 5, ( int ) patchsize );
-                _clpmh_init_disparity_normal.setArg( 6, disparitymax );
-                _clpmh_init_disparity_normal.setArg<int>( 7, ( int ) LR );
-                _clpmh_init_disparity_normal.setArg( 8, *initdisparity );
-                _clpmh_init_disparity_normal.setArg( 9, *initnormalmap );
-                _clpmh_init_disparity_normal.run( CLNDRange( Math::pad( first.width(), KX ), Math::pad( first.height(), KY ) ), CLNDRange( KX, KY ) );
+            Image normal;
 
-            }
+            if( !initnormalmap )
+                disparityToNormal( normal, *initdisparity );
+
+            _clpmh_init_disparity_normal.setArg( 0, output );
+            _clpmh_init_disparity_normal.setArg( 1, first );
+            _clpmh_init_disparity_normal.setArg( 2, second );
+            _clpmh_init_disparity_normal.setArg( 3, firstgrad );
+            _clpmh_init_disparity_normal.setArg( 4, secondgrad );
+            _clpmh_init_disparity_normal.setArg( 5, ( int ) patchsize );
+            _clpmh_init_disparity_normal.setArg( 6, disparitymax );
+            _clpmh_init_disparity_normal.setArg<int>( 7, ( int ) LR );
+            _clpmh_init_disparity_normal.setArg( 8, *initdisparity );
+            _clpmh_init_disparity_normal.setArg( 9, initnormalmap?*initnormalmap:normal );
+            _clpmh_init_disparity_normal.run( CLNDRange( Math::pad( first.width(), KX ), Math::pad( first.height(), KY ) ), CLNDRange( KX, KY ) );
         }
     }
 
@@ -704,6 +696,14 @@ namespace cvt {
 
         d.save( name + "_depth.png");
         n.save( name + "_normal.png");
+    }
+
+    void PMHuberStereo::disparityToNormal( Image& output, const Image& input ) const
+    {
+        output.reallocate( input.width(), input.height(), IFormat::RGBA_FLOAT, IALLOCATOR_CL );
+        _clpmh_disparitytonormal.setArg( 0, output );
+        _clpmh_disparitytonormal.setArg( 1, input );
+        _clpmh_disparitytonormal.run( CLNDRange( Math::pad( input.width(), KX ), Math::pad( input.height(), KY ) ), CLNDRange( KX, KY ) );
     }
 
     void PMHuberStereo::pyrUpMul( Image& output, const Image& input, const Vector4f& mul )
