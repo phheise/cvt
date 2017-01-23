@@ -38,6 +38,7 @@
     #include <OpenGL/OpenGL.h>
 #else
     #include <GL/gl.h>
+    #include <GL/glext.h>
 #endif
 
 #include <cvt/math/Matrix.h>
@@ -46,9 +47,7 @@
 #include <string>
 #include <vector>
 
-
 namespace cvt {
-
     /**
       \ingroup GL
       \defgroup GL OpenGL
@@ -121,6 +120,5 @@ namespace cvt {
         major = _glslmajor;
         minor = _glslminor;
     }
-
 }
 #endif
