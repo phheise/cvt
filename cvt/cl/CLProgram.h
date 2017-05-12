@@ -90,6 +90,7 @@ namespace cvt {
             throw CLException( __PRETTY_FUNCTION__, err );
         log.resize( size );
         err = ::clGetProgramBuildInfo( *this, dev, CL_PROGRAM_BUILD_LOG, size, &log[ 0 ], &size );
+        log.updateLength();
         if( err != CL_SUCCESS )
             throw CLException( __PRETTY_FUNCTION__, err );
     }

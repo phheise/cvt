@@ -100,7 +100,11 @@ namespace cvt {
             /*, "-cl-single-precision-constant -cl-denorms-are-zero -cl-mad-enable -cl-fast-relaxed-math"*/
             String log;
             prog.buildLog( *CL::defaultDevice(), log );
-            throw CVTException( log.c_str() );
+            String output("CLKernel kernel: ");
+            output += name;
+            output += " error:\n";
+            output += log;
+            throw CVTException( output.c_str() );
         }
 
         cl_int err;
@@ -119,7 +123,11 @@ namespace cvt {
             /*, "-cl-single-precision-constant -cl-denorms-are-zero -cl-mad-enable -cl-fast-relaxed-math"*/
             String log;
             prog.buildLog( *CL::defaultDevice(), log );
-            throw CVTException( log.c_str() );
+            String output("CLKernel kernel: ");
+            output += name;
+            output += " error:\n";
+            output += log;
+            throw CVTException( output.c_str() );
         }
 
         cl_int err;
