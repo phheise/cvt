@@ -221,6 +221,7 @@ SET( CVT_HEADERS
    cl/CLKernel.h
    cl/CLLocalSpace.h
    cl/CLMatrix.h
+   cl/CLMemory.h
    cl/CLNDRange.h
    cl/CLObject.h
    cl/CLObject.inl
@@ -424,6 +425,7 @@ SET( CVT_HEADERS
    math/JointMeasurements.h
    math/GaussNewton.h
    math/LevenbergMarquard.h
+   math/LUP.h
    math/Math.h
    math/Matrix.h
    math/Matrix2.h
