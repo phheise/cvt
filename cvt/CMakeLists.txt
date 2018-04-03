@@ -195,6 +195,7 @@ SET( CL_KERNELS
     cl/kernel/TSDFVH/TSDFVH.cl
     cl/kernel/pmhstereo.cl
     cl/kernel/MC.cl
+    cl/kernel/warp.cl
 )
 
 FOREACH( CLFILE ${CL_KERNELS} )
@@ -231,6 +232,7 @@ SET( CVT_HEADERS
    cl/CLUtil.h
    cl/OpenCL.h
    cl/CLGUMM.h
+   cl/CLWarp.h
    container/List.h
    container/RBTree.h
    com/AsyncTCPServer.h
@@ -287,13 +289,13 @@ SET( CVT_HEADERS
    gfx/IThreshold.h
    gfx/ILoader.h
    gfx/ISaver.h
+   gfx/IWarp.h
    gfx/ifilter/ROFDenoise.h
    gfx/ifilter/ROFFGPFilter.h
    gfx/ifilter/Homography.h
    gfx/ifilter/GaussIIR.h
    gfx/ifilter/BrightnessContrast.h
    gfx/ifilter/ITransform.h
-   gfx/ifilter/IWarp.h
    gfx/ifilter/IntegralFilter.h
    gfx/ifilter/BoxFilter.h
    gfx/ifilter/GuidedFilter.h
@@ -626,6 +628,7 @@ SET( CVT_SOURCES
     cl/CLKernel.cpp
     cl/CLProgram.cpp
     cl/CLPyramid.cpp
+    cl/CLWarp.cpp
     com/Host.cpp
     com/Socket.cpp
     com/TCPClient.cpp
@@ -646,13 +649,13 @@ SET( CVT_SOURCES
     gfx/IMorphological.cpp
     gfx/IMinMax.cpp
     gfx/IThreshold.cpp
+    gfx/IWarp.cpp
     gfx/ifilter/ROFDenoise.cpp
     gfx/ifilter/ROFFGPFilter.cpp
     gfx/ifilter/Homography.cpp
     gfx/ifilter/GaussIIR.cpp
     gfx/ifilter/BrightnessContrast.cpp
     gfx/ifilter/ITransform.cpp
-    gfx/ifilter/IWarp.cpp
     gfx/ifilter/IntegralFilter.cpp
     gfx/ifilter/BoxFilter.cpp
     gfx/ifilter/GuidedFilter.cpp
