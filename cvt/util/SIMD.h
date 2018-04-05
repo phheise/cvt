@@ -346,17 +346,35 @@ namespace cvt {
 
             virtual void debayer_EVEN_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
             virtual void debayer_ODD_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+            virtual void debayer_EVEN_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+            virtual void debayer_ODD_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+
 
             virtual void debayerhq_EVEN_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
                                                        const uint32_t* src4, const uint32_t* src5, size_t n ) const;
             virtual void debayerhq_ODD_RGGBu8_RGBAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
                                                        const uint32_t* src4, const uint32_t* src5, size_t n ) const;
-
-            virtual void debayer_EVEN_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
-            virtual void debayer_ODD_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+            virtual void debayerhq_EVEN_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
+                                                       const uint32_t* src4, const uint32_t* src5, size_t n ) const;
+            virtual void debayerhq_ODD_RGGBu8_BGRAu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3,
+                                                       const uint32_t* src4, const uint32_t* src5, size_t n ) const;
 
             virtual void debayer_EVEN_RGGBu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
             virtual void debayer_ODD_RGGBu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+
+            virtual void debayer_EVEN_GBRGu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+            virtual void debayer_ODD_GBRGu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+
+            virtual void debayer_EVEN_GRBGu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+            virtual void debayer_ODD_GRBGu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+
+            virtual void debayer_EVEN_BGGRu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+            virtual void debayer_ODD_BGGRu8_GRAYu8( uint32_t* dst, const uint32_t* src1, const uint32_t* src2, const uint32_t* src3, size_t n ) const;
+
+            virtual void bayer_RGBAu8_RGu8( uint8_t* dst, const uint32_t* src, size_t n ) const;
+            virtual void bayer_RGBAu8_GBu8( uint8_t* dst, const uint32_t* src, size_t n ) const;
+            virtual void bayer_RGBAu8_GRu8( uint8_t* dst, const uint32_t* src, size_t n ) const;
+            virtual void bayer_RGBAu8_BGu8( uint8_t* dst, const uint32_t* src, size_t n ) const;
 
             virtual size_t hammingDistance( const uint8_t* src1, const uint8_t* src2, size_t n ) const;
 
