@@ -60,6 +60,7 @@ namespace cvt {
             // - CL_IMAGE_FORMAT CLImageFormat
             // - CL_IMAGE_ELEMENT_SIZE bpp
         private:
+            cl_mem createImage2D( cl_context context, cl_mem_flags flags, const cl_image_format* format, size_t width, size_t height, size_t row_pitch, void* host_ptr, cl_int* err ) const;
 
             size_t _width;
             size_t _height;

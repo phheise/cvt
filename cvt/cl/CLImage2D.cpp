@@ -33,7 +33,7 @@ namespace cvt {
         : _width( width ), _height( height ), _format( format )
     {
         cl_int err;
-        _object = ::clCreateImage2D( context, flags, ( cl_image_format* ) &format, width, height, stride, host_ptr, &err );
+        _object = createImage2D( context, flags, ( cl_image_format* ) &format, width, height, stride, host_ptr, &err );
         if( err != CL_SUCCESS )
             throw CLException( err );
     }
@@ -49,7 +49,7 @@ namespace cvt {
         : _width( width ), _height( height ), _format( format )
     {
         cl_int err;
-        _object = ::clCreateImage2D( *CL::defaultContext(), flags, ( cl_image_format* ) &_format, _width, _height, 0, NULL, &err );
+        _object = createImage2D( *CL::defaultContext(), flags, ( cl_image_format* ) &_format, _width, _height, 0, NULL, &err );
         if( err != CL_SUCCESS )
             throw CLException( err );
     }
@@ -63,7 +63,7 @@ namespace cvt {
         : CLMemory(), _width( img._width ), _height( img._height ), _format( img._format )
     {
         cl_int err;
-        _object = ::clCreateImage2D( *CL::defaultContext(), flags, ( cl_image_format* ) &_format, _width, _height, 0, NULL, &err );
+        _object = createImage2D( *CL::defaultContext(), flags, ( cl_image_format* ) &_format, _width, _height, 0, NULL, &err );
         if( err != CL_SUCCESS )
             throw CLException( err );
 
@@ -72,6 +72,25 @@ namespace cvt {
             rect.intersect( *r );
 
         CL::defaultQueue()->enqueueCopyImage( *this, img, 0, 0, rect.x, rect.y, rect.width, rect.height, NULL, NULL );
+    }
+
+
+    cl_mem CLImage2D::createImage2D( cl_context context, cl_mem_flags flags, const cl_image_format* format, size_t width, size_t height, size_t row_pitch, void* host_ptr, cl_int* err ) const
+    {
+        cl_image_desc desc;
+
+        desc.image_type        = CL_MEM_OBJECT_IMAGE2D;
+        desc.image_width       = width;
+        desc.image_height      = height;
+        desc.image_depth       = 1;
+        desc.image_array_size  = 0;
+        desc.image_row_pitch   = host_ptr ? row_pitch : 0;
+        desc.image_slice_pitch = 0;
+        desc.num_mip_levels    = 0;
+        desc.num_samples       = 0;
+        desc.buffer            = NULL;
+
+        return ::clCreateImage( context, flags, format, &desc, host_ptr, err );
     }
 
     /**
