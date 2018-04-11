@@ -112,6 +112,8 @@ SET( CL_KERNELS
     cl/kernel/BC.cl
     cl/kernel/clear.cl
     cl/kernel/clearbuffer.cl
+    cl/kernel/debayer.cl
+    cl/kernel/debayerhq.cl
     cl/kernel/fill.cl
     cl/kernel/Feature.cl
     cl/kernel/FAST.cl
@@ -233,6 +235,7 @@ SET( CVT_HEADERS
    cl/OpenCL.h
    cl/CLGUMM.h
    cl/CLWarp.h
+   cl/CLDebayer.h
    container/List.h
    container/RBTree.h
    com/AsyncTCPServer.h
@@ -629,6 +632,7 @@ SET( CVT_SOURCES
     cl/CLProgram.cpp
     cl/CLPyramid.cpp
     cl/CLWarp.cpp
+    cl/CLDebayer.cpp
     com/Host.cpp
     com/Socket.cpp
     com/TCPClient.cpp
