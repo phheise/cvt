@@ -46,7 +46,7 @@ namespace cvt {
             void add( float value )
             {
                 value = Math::clamp( value, _min, _max );
-                float fidx =  value / ( _range ) * ( float ) ( _hist.size() - 1 ) + 0.5f;
+                float fidx =  (value - _min) / ( _range ) * ( float ) ( _hist.size() - 1 ) + 0.5f;
                 int idx = ( int ) fidx;
 
 //                if( idx < 0 || idx >= _hist.size() )
